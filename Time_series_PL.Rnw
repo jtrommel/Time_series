@@ -40,6 +40,9 @@
 \SweaveOpts{concordance=TRUE,prefix.string=TS}
 \maketitle
 
+\section{Prepatory work}
+
+\subsection{Installing the necessary libraries}
 <<echo=FALSE>>=
 library(feather)
 library(data.table)
@@ -54,6 +57,42 @@ library(grid)
 library(animation)
 @
 
+Setting the ggplot theme:
+<<>>=
+theme_ts <- theme(panel.border = element_rect(fill = NA, colour = "gray10"),
+                  panel.background = element_blank(),
+                  panel.grid.major = element_line(colour = "gray85"),
+                  panel.grid.minor = element_line(colour = "gray85"),
+                  panel.grid.major.x = element_line(colour = "gray85"),
+                  axis.text = element_text(size = 13 , face = "bold"),
+                  axis.title = element_text(size = 15 , face = "bold"),
+                  plot.title = element_text(size = 16 , face = "bold"),
+                  strip.text = element_text(size = 16 , face = "bold"),
+                  strip.background = element_rect(colour = "black"),
+                  legend.text = element_text(size = 15),
+                  legend.title = element_text(size = 16 , face = "bold"),
+                  legend.background = element_rect(fill = "white"),
+                  legend.key = element_rect(fill = "white"))
+@
+
+\subsection{Reading in the data}
+
+17 weeks, each day 48 readings, one per half hour:
+
+<<>>=
+DT <- as.data.table(read_feather("Data/DT_load_17weeks.dms"))
+n_date <- unique(DT[,date]) # 17 weeks = 119 days
+period <- 48 # 1 lezing per half uur per dag
+@
+
+\section{Creating the train and the test data set}
+
+The training set is formed by a random choice of 3 weeks of recording (is this case: days 43-63. The test set is the following day, because we only want to make a prediction for one day:
+
+<<>>=
+data_train <- DT[date %in% n_date[43:63]]
+data_test <- DT[date %in% n_date[64]]
+@
 
 
 \end{document}
