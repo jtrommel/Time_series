@@ -57,6 +57,27 @@ library(grid)
 library(animation)
 @
 
+A week-function to find the correct weeknumber:
+<<>>=
+findWeekNo <- function(myDate){
+  # Find out the start day of week 1; that is the date of first Mon in the year
+  weekday <- switch(weekdays(as.Date(paste(format(as.Date(myDate),"%Y"),"01-01", sep = "-"))),
+                    "Monday"={1},
+                    "Tuesday"={2},
+                    "Wednesday"={3},
+                    "Thursday"={4},
+                    "Friday"={5},
+                    "Saturday"={6},
+                    "Sunday"={7}
+  )
+
+  firstMon <- ifelse(weekday==1,1, 9 - weekday )
+
+  weekNo <- floor((as.POSIXlt(myDate)$yday - (firstMon-1))/7)+1
+  return(weekNo)
+}
+@
+
 Setting the ggplot theme:
 <<>>=
 theme_ts <- theme(panel.border = element_rect(fill = NA, colour = "gray10"),
