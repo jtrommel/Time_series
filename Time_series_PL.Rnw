@@ -96,24 +96,28 @@ data_train <- DT[date %in% n_date[43:63]]
 data_test <- DT[date %in% n_date[64]]
 @
 
-Calculating average per week (using dplyr):
+Calculating average per week (using sapply):
 
 <<>>=
-# week function starts at 1 jan. In 2016 that is a Friday. We want our week to start on a monday so we do +4
-data_train$JTweek <- week(data_train$date + 4) 
-data_train %>% group_by(JTweek) %>% summarise(mean(value))
+averages <- data.table(value = rep(sapply(0:2, function(i)
+  mean(data_train[((i*period*7)+1):((i+1)*period*7), value])),
+  each = period*7),
+  date_time = data_train$date_time)
 @
 
-Calculate weekly averages:
+Plot of data\_train 3 weeks + average of each week:
 
-<<>>=
-data_train %>% group_by(JTweek) %>% summarise(mean(value)) -> averages
-colnames(averages) <- c("JTweek","wkmean")
-data_train <- left_join(data_train,averages)
-ggplot(data_train) + 
-  geom_line(aes(x=date_time, y=value)) + 
-  geom_line(aes(x=date_time,y=wkmean),linetype=5, alpha=0.75, size=1.2, color="firebrick2") + 
+<<label=3weeks,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data = data_train, aes(date_time, value)) + 
+  geom_line() + 
+  geom_line(data = averages, aes(date_time, value),linetype=5, alpha=0.75, size=1.2, color="firebrick2") + 
   labs(x="Date",y="Load (kW)") + 
   theme_ts
 @
+
+\begin{center}
+\includegraphics[width=0.75\textwidth]{TS-3weeks}
+\captionof{figure}{}
+\label{fig:3weeks}
+\end{center}
 \end{document}
