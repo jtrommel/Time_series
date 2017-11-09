@@ -120,4 +120,47 @@ ggplot(data = data_train, aes(date_time, value)) +
 \captionof{figure}{}
 \label{fig:3weeks}
 \end{center}
+
+\section{STL-decomposition}
+
+A very useful method for visualization and analysis of time series is the \emph{STL decomposition}: S=seasonal, T=trend, L= Loess regression (the method used). We first have to transform our data in a times series object. This requires the parameter ''frequency". In our data\_train this is one week of observations which equals period\*7 readings.
+
+<<>>=
+data_ts <- ts(data_train$value, freq=period*7)
+@
+
+The stl-command returns an STL-object. In the documentation (\footnote{https://www.rdocumentation.org/packages/stats/versions/3.4.1/topics/stl}) we can find that it has a number of components. The first is called ''time.series" and it contains the decomposition details: the Seasonal value, the Trend value and the Remainder.
+
+<<>>=
+decomp_ts <- stl(data_ts, s.window = "periodic", robust = TRUE)$time.series
+@
+
+We turn this into a data.table. First the original data (value and date), then new rows with the seasonal component, new rows with the trend component and new rows with the remainder. In a new column we have the words ''original data", ''seasonal", ''trend" and ''remainder" (the last three are the column names of decomp\_ts)
+
+<<>>=
+decomp_stl <- data.table(Load = c(data_train$value, as.numeric(decomp_ts)),
+                         Date = rep(data_train[,date_time], ncol(decomp_ts) + 1),
+                         Type = factor(rep(c("original data", colnames(decomp_ts)), 
+                                           each = nrow(decomp_ts)),
+                                       levels = c("original data", colnames(decomp_ts))))
+@
+
+<<label=stl,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data = decomp_stl, aes(x = Date, y = Load)) + 
+  geom_line() +
+  facet_grid(Type ~ ., scales = "free_y", switch = "y") +
+  labs(x="Date", y=NULL, title="Time Series Decomposition by STL" ) + 
+  theme_ts
+@
+
+\begin{center}
+\includegraphics[width=0.75\textwidth]{TS-stl}
+\captionof{figure}{}
+\label{fig:stl}
+\end{center}
+
+We can see there is a trend: first an increase from week 1 to week 2, then a decrease from week 2 to 3. The remainder does not seem to be exactly ''white noise". Probably there are other elements at play (e.g. weather).
+
+
+
 \end{document}
