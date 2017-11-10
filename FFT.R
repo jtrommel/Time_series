@@ -7,7 +7,7 @@ freq.resolution <- Fs/N # frequentie resolutie
 print(freq.resolution)
 t <- c(0 : (N-1)*Ts) # tijdsverloop
 F0 <- 50 # frequentie van het tijdssignaal
-x <- sin(2*pi*F0*t) + 0.6*cos(2*pi*3*F0*t + pi/3) # tijdssignaal
+x <- sin(2*pi*F0*t) + 0.4*cos(2*pi*3*F0*t + pi/3) - 0.2*sin(2*pi*8*F0*t - pi/4) # tijdssignaal
 signal <- data.frame(t,x)
 signal %>% filter(t<=0.1) %>% ggplot() + geom_line(aes(t,x))
 # Berekening van het double sided en single sided spectrum
@@ -23,5 +23,5 @@ aantal <- length(z[Mod(z)>grens])
 fasehoek <- Arg(z[Mod(z)>grens])/pi
 resultaat <- data.frame(freq=freqspec$freq[freqspec$amp>grens],
                         amp=freqspec$amp[freqspec$amp>grens],
-                        fasehoek=fasehoek[1:(aantal/2)])
+                        fasehoek_pi=fasehoek[1:(aantal/2)])
 print(resultaat)
