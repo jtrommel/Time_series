@@ -161,6 +161,10 @@ ggplot(data = decomp_stl, aes(x = Date, y = Load)) +
 
 We can see there is a trend: first an increase from week 1 to week 2, then a decrease from week 2 to 3. The remainder does not seem to be exactly ''white noise". Probably there are other elements at play (e.g. weather).
 
+\section{Feature engineering with Fourier}
 
+In our data we have values sampled every half hour for each day. The periode of the original signal $T_{0}$ equals 1 day and the sample periode $T_{s}$ equals $\frac{1}{48}=\frac{T_{0}}{48}$ of a day. The number of samples N equals 48. The Discrete Fourier Transform gives the complex spectrum as:
+
+$X_{p}[k]=\sum \limits_{n=0}^{N-1}x_{p} e^{-j \frac{2 /pi k n}{N}}$
 
 \end{document}
