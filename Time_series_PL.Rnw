@@ -77,6 +77,32 @@ theme_ts <- theme(panel.border = element_rect(fill = NA, colour = "gray10"),
                   legend.key = element_rect(fill = "white"))
 @
 
+My functions:
+
+<<>>=
+JTR.FFT <- function(signal.df) {
+  signal <- signal.df
+  names(signal) <- c("t","x")
+  N <- nrow(signal)
+  Ts <- as.numeric(signal$t[2]-signal$t[1])
+  Fs <- 1/Ts
+  # Berekening van het double sided en single sided spectrum
+  z <- fft(signal$x)
+  P2 <- Mod(z/N)
+  P1 <- P2[1:((N/2)+1)]
+  P1[2:(length(P1)-1)] <- 2*P1[2:(length(P1)-1)]
+  freq <- seq(0, (Fs/2)-(Fs/N), Fs/N)
+  freqspec <- data.frame(freq=freq,amp=P1[1:(N/2)],arg=Arg(z[1:(N/2)]))
+  grens <- max(freqspec$amp)/3
+  aantal <- length(freqspec$amp[freqspec$amp>grens])
+  resultaat <- data.frame(freq=rep(0,aantal), amp=rep(0,aantal), fasehoek=rep(0,aantal))
+  resultaat <- data.frame(freq=freqspec$freq[freqspec$amp>grens],
+                          amp=freqspec$amp[freqspec$amp>grens],
+                          fasehoek_pi=freqspec$arg[freqspec$amp>grens]/pi)
+  return(list("freqspec"=freqspec,"resultaat"=resultaat))
+}
+@
+
 \subsection{Reading in the data}
 
 17 weeks, each day 48 readings, one per half hour:
@@ -163,8 +189,71 @@ We can see there is a trend: first an increase from week 1 to week 2, then a dec
 
 \section{Feature engineering with Fourier}
 
-In our data we have values sampled every half hour for each day. The periode of the original signal $T_{0}$ equals 1 day and the sample periode $T_{s}$ equals $\frac{1}{48}=\frac{T_{0}}{48}$ of a day. The number of samples N equals 48. The Discrete Fourier Transform gives the complex spectrum as:
+In our data we have values sampled every half hour for each day. The lenght of the original signal is 3 weeks or 21 days which gives us 21*48=1008=N samples. The Discrete Fourier Transform gives the complex spectrum as:
 
-$X_{p}[k]=\sum \limits_{n=0}^{N-1}x_{p} e^{-j \frac{2 /pi k n}{N}}$
+$X_{p}[k]=\sum \limits_{n=0}^{N-1}x_{p} e^{-j \frac{2 \pi k n}{N}}$
+
+<<>>=
+signal <- decomp_stl[decomp_stl$Type=="seasonal",c("Date","Load")]
+signal.freq <- JTR.FFT(signal)
+signal.freq$resultaat$periode_dag <- 1/(signal.freq$resultaat$freq*48*30)
+# reorder the result based on the amplitude
+resultaat <- signal.freq$resultaat[order(-signal.freq$resultaat$amp),]
+@
+
+<<label=FFT1,fig=TRUE,include=FALSE, echo=FALSE>>=
+freqspec <- signal.freq$freqspec
+ggplot(data=freqspec) + geom_line(aes(x=freq,y=amp))
+@
+
+\begin{center}
+\includegraphics[width=0.75\textwidth]{TS-FFT1}
+\captionof{figure}{}
+\label{fig:FFT1}
+\end{center}
+
+\section{Reconstruct the signal}
+
+\subsection{First term: half day= night and day}
+<<>>=
+recon <- signal
+recon$tijd <- ifelse(ymd_hms(recon$Date)=="2016-06-30 0:00:00",
+                     0,
+                     (as.numeric(rownames(recon))-1)*30)
+recon$term1 <- resultaat$amp[1]*cos(2*pi*resultaat$freq[1]*recon$tijd +
+                                                  resultaat$fasehoek_pi[1]*pi)
+@
+
+<<label=FFT_term1,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=recon) + 
+  geom_line(aes(x=Date,y=Load),color="black") +
+  geom_line(aes(x=Date,y=term1, color="red")) +
+  labs(title="weekly component")
+@
+
+\begin{center}
+\includegraphics[width=0.75\textwidth]{TS-FFT_term1}
+\captionof{figure}{}
+\label{fig:FFT_term1}
+\end{center}
+
+\subsection{Second term: weekly}
+
+<<label=FFT_term2,fig=TRUE,include=FALSE, echo=FALSE>>=
+recon$term2 <- resultaat$amp[2]*cos(2*pi*resultaat$freq[2]*recon$tijd +
+                                                  resultaat$fasehoek_pi[2]*pi)
+ggplot(data=recon) + 
+  geom_line(aes(x=Date,y=Load),color="black") +
+  geom_line(aes(x=Date,y=term1, color="red")) +
+  geom_line(aes(x=Date,y=(term1+term2)),color="blue") +
+  labs(title="weekly and half-weekly component")
+@
+
+\begin{center}
+\includegraphics[width=0.75\textwidth]{TS-FFT_term2}
+\captionof{figure}{}
+\label{fig:FFT_term2}
+\end{center}
+
 
 \end{document}
