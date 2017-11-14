@@ -207,7 +207,7 @@ ggplot(data=freqspec) + geom_line(aes(x=freq,y=amp))
 @
 
 \begin{center}
-\includegraphics[width=0.75\textwidth]{TS-FFT1}
+\includegraphics[width=0.5\textwidth]{TS-FFT1}
 \captionof{figure}{}
 \label{fig:FFT1}
 \end{center}
@@ -227,12 +227,12 @@ recon$term1 <- resultaat$amp[1]*cos(2*pi*resultaat$freq[1]*recon$tijd +
 <<label=FFT_term1,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=recon) + 
   geom_line(aes(x=Date,y=Load),color="black") +
-  geom_line(aes(x=Date,y=term1, color="red")) +
-  labs(title="weekly component")
+  geom_line(aes(x=Date,y=term1), color="red") +
+  labs(title="half-day component")
 @
 
 \begin{center}
-\includegraphics[width=0.75\textwidth]{TS-FFT_term1}
+\includegraphics[width=0.5\textwidth]{TS-FFT_term1}
 \captionof{figure}{}
 \label{fig:FFT_term1}
 \end{center}
@@ -244,16 +244,50 @@ recon$term2 <- resultaat$amp[2]*cos(2*pi*resultaat$freq[2]*recon$tijd +
                                                   resultaat$fasehoek_pi[2]*pi)
 ggplot(data=recon) + 
   geom_line(aes(x=Date,y=Load),color="black") +
-  geom_line(aes(x=Date,y=term1, color="red")) +
   geom_line(aes(x=Date,y=(term1+term2)),color="blue") +
-  labs(title="weekly and half-weekly component")
+  labs(title="half-day + weekly component")
 @
 
 \begin{center}
-\includegraphics[width=0.75\textwidth]{TS-FFT_term2}
+\includegraphics[width=0.5\textwidth]{TS-FFT_term2}
 \captionof{figure}{}
 \label{fig:FFT_term2}
 \end{center}
+
+\subsection{Third term: 1.17  days}
+
+<<label=FFT_term3,fig=TRUE,include=FALSE, echo=FALSE>>=
+recon$term3 <- resultaat$amp[3]*cos(2*pi*resultaat$freq[3]*recon$tijd +
+                                                  resultaat$fasehoek_pi[3]*pi)
+ggplot(data=recon) + 
+  geom_line(aes(x=Date,y=Load),color="black") +
+  geom_line(aes(x=Date,y=(term1+term2+term3)),color="blue") +
+  labs(title="half-day + weekly + 1.17 daily component")
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{TS-FFT_term3}
+\captionof{figure}{}
+\label{fig:FFT_term3}
+\end{center}
+
+\section{Forecasting of trend}
+
+After decomposition the values of the trend are stored in decomp_ts in the second column. We use the ARIMA function for spotting the trend and then use this to make a forecast for the next period (the data_test period).
+
+<<>>=
+trend_part <- ts(decomp_ts[,"trend"])
+trend_fit <- auto.arima(trend_part)
+trend_for <- forecast(trend_fit , period)$mean
+trend_data <- data.table(Load=c(decomp_ts[,"trend"], trend_for),
+                         Date=c(data_train$date_time, data_test$date_time),
+                         Type=c(rep("Real", nrow(data_train)), rep("Forecast", nrow(data_test))))
+ggplot(data=trend_data) +
+  geom_line(aes(Date, Load, color=Type), size=1.2) +
+  labs(title=paste(trend_fit)) +
+  theme_ts
+@
+
 
 
 \end{document}
