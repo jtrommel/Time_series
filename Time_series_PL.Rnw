@@ -191,6 +191,48 @@ ggplot(data = decomp_stl, aes(x = Date, y = Load)) +
 
 We can see there is a trend: first an increase from week 1 to week 2, then a decrease from week 2 to 3. The remainder does not seem to be exactly ''white noise". Probably there are other elements at play (e.g. weather).
 
+\section{Poging tot eigen decompositie}
+
+\subsection{Trend met lowess()}
+<<>>=
+JT.train.trend <- lowess(data_train$value, f=0.75) # Gives smoothed values with default settings - 1008 values
+JT.rest <- data_train$value - JT.train.trend$y
+JT.decomp <- data.table(Load = c(data_train$value, JT.train.trend$y, JT.rest),
+                         Date = rep(data_train[,date_time], 3),
+                         Type = factor(rep(c("original data", "lowess data", "rest"), 
+                                           each = nrow(data_train)),
+                                       levels = c("original data", "lowess data", "rest")))
+@
+
+<<label=JTtrend,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data = JT.decomp, aes(x = Date, y = Load)) + 
+  geom_line() +
+  facet_grid(Type ~ ., scales = "free_y", switch = "y") +
+  labs(x="Date", y=NULL, title="Trend met lowess()" ) + 
+  theme_ts
+@
+
+\subsection{Periodiek karakter van het restant met JT.FFT}
+
+<<>>=
+signal <- JT.decomp[JT.decomp$Type=="rest",c("Date","Load")]
+signal.freq <- JTR.FFT(signal)
+signal.freq$resultaat$periode_dag <- 1/(signal.freq$resultaat$freq*48*30)
+# reorder the result based on the amplitude
+resultaat <- signal.freq$resultaat[order(-signal.freq$resultaat$amp),]
+@
+
+<<label=JTFFT,fig=TRUE,include=FALSE, echo=FALSE>>=
+freqspec <- signal.freq$freqspec
+ggplot(data=freqspec) + geom_line(aes(x=freq,y=amp))
+@
+
+\begin{center}
+\includegraphics[width=0.5\textwidth]{TS-JTFFT}
+\captionof{figure}{}
+\label{fig:JTFFT}
+\end{center}
+
 \section{Feature engineering with Fourier}
 
 In our data we have values sampled every half hour for each day. The lenght of the original signal is 3 weeks or 21 days which gives us 21*48=1008=N samples. The Discrete Fourier Transform gives the complex spectrum as:
