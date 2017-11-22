@@ -113,6 +113,10 @@ n_date <- unique(DT[,date]) # 17 weeks = 119 days
 period <- 48 # 1 lezing per half uur per dag
 @
 
+\section{Intermezzo: a really good explanation of the lowess() and the loess() function in R}
+
+\emph{https://www.youtube.com/watch?v=Vf7oJ6z2LCc}
+
 \section{Creating the train and the test data set}
 
 The training set is formed by a random choice of 3 weeks of recording (is this case: days 43-63. The test set is the following day, because we only want to make a prediction for one day:
@@ -273,7 +277,7 @@ ggplot(data=recon) +
 
 \section{Forecasting of trend}
 
-After decomposition the values of the trend are stored in decomp_ts in the second column. We use the ARIMA function for spotting the trend and then use this to make a forecast for the next period (the data_test period).
+After decomposition the values of the trend are stored in decomp\_ts in the second column. We use the ARIMA function for spotting the trend and then use this to make a forecast for the next period (the data\_test period).
 
 <<>>=
 trend_part <- ts(decomp_ts[,"trend"])
