@@ -191,11 +191,11 @@ ggplot(data = decomp_stl, aes(x = Date, y = Load)) +
 
 We can see there is a trend: first an increase from week 1 to week 2, then a decrease from week 2 to 3. The remainder does not seem to be exactly ''white noise". Probably there are other elements at play (e.g. weather).
 
-\section{Poging tot eigen decompositie}
+\section{Poging tot eigen decompositie met lowess()}
 
 \subsection{Trend met lowess()}
 <<>>=
-JT.train.trend <- lowess(data_train$value, f=0.75) # Gives smoothed values with default settings - 1008 values
+JT.train.trend <- lowess(data_train$value, f=0.33) # Gives smoothed values with default settings - 1008 values
 JT.rest <- data_train$value - JT.train.trend$y
 JT.decomp <- data.table(Load = c(data_train$value, JT.train.trend$y, JT.rest),
                          Date = rep(data_train[,date_time], 3),
@@ -232,6 +232,38 @@ ggplot(data=freqspec) + geom_line(aes(x=freq,y=amp))
 \captionof{figure}{}
 \label{fig:JTFFT}
 \end{center}
+
+\subsection{Recreating the seasonal component from the FFT results}
+
+<<>>=
+JT.season <- signal
+JT.season$tijd <- ifelse(ymd_hms(JT.season$Date)=="2016-06-30 0:00:00",
+                     0,
+                     (as.numeric(rownames(JT.season))-1)*30)
+JT.season$value <- 0
+for (i in (1:nrow(JT.season))) {
+  for (j in (1:nrow(resultaat))) {
+  JT.season$value[i] <- JT.season$value[i] + 
+    resultaat$amp[j]*cos(2*pi*resultaat$freq[j]*JT.season$tijd[i] +
+    resultaat$fasehoek_pi[j]*pi)
+  }
+}
+JT.ruis <- JT.rest - JT.season$value
+JT.decomp <- data.table(Load = c(data_train$value, JT.train.trend$y, JT.rest, JT.season$value, JT.ruis),
+                         Date = rep(data_train[,date_time], 5),
+                         Type = factor(rep(c("original data", "lowess data", "rest", "season", "ruis"), 
+                                           each = nrow(data_train)),
+                                       levels = c("original data", "lowess data", "rest", "season", "ruis")))
+@
+
+<<label=JTseason,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data = JT.decomp, aes(x = Date, y = Load)) + 
+  geom_line() +
+  facet_grid(Type ~ ., scales = "free_y", switch = "y") +
+  labs(x="Date", y=NULL, title="Season added" ) + 
+  theme_ts
+@
+
 
 \section{Feature engineering with Fourier}
 
