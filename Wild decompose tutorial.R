@@ -38,21 +38,21 @@ ggplot(data=ap.df) +
 # Met functie rollmean van package "zoo"
 require(zoo)
 n <- 40
-ap.df$ma[1:(n-1)] <- NA
-ap.df$ma[n:nrow(ap.df)] <- rollmean(ap.df$x,n)
+ap.df$rollmean[1:(n-1)] <- NA
+ap.df$rollmean[n:nrow(ap.df)] <- rollmean(ap.df$x,n)
 ggplot(data=ap.df) +
   geom_line(aes(x=tijd,y=x)) +
-  geom_line(aes(x=tijd,y=ma),color="red") +
+  geom_line(aes(x=tijd,y=rollmean),color="red") +
   labs(title="original data", subtitle="rollmean, n=40")
 # Loopt duidelijk achter op de feiten! Dat is het klassieke nadeel van een backward looking
 # moving average systeem: als er een trend is, dan wordt die pas laat opgepikt.
 # We kunnen dat gedeeltelijk opvangen door n kleiner te maken bv. n=12 (smoothing over 1 jaar)
 n <- 12
-ap.df$ma[1:(n-1)] <- NA
-ap.df$ma[n:nrow(ap.df)] <- rollmean(ap.df$x,n)
+ap.df$rollmean[1:(n-1)] <- NA
+ap.df$rollmean[n:nrow(ap.df)] <- rollmean(ap.df$x,n)
 ggplot(data=ap.df) +
   geom_line(aes(x=tijd,y=x)) +
-  geom_line(aes(x=tijd,y=ma),color="red") +
+  geom_line(aes(x=tijd,y=rollmean),color="red") +
   labs(title="original data", subtitle="rollmean, n=12")
 #
 # Maar je blijft "te laat" komen.
@@ -86,26 +86,44 @@ JT.des <- function(serie.des, alpha=0.1, beta=0.1) {
   }
   return(serie.des)
 }
-reeks <- data.frame(x=c(1:nrow(ap.df)), y=ap.df$x)
-reeks$yhat <- JT.des(reeks, alpha=0.1, beta=0.1)$yhat
-ggplot(data=reeks, aes(x=x)) + 
-  geom_line(aes(y=y), colour="black") + 
-  geom_line(aes(y=yhat), colour="red") +
+ap.df$des <- JT.des(reeks, alpha=0.1, beta=0.1)$yhat
+ggplot(data=ap.df, aes(x=tijd)) + 
+  geom_line(aes(y=x), colour="black") + 
+  geom_line(aes(y=des), colour="red") +
   labs(title="Double exponential smoothing (alpha=0.1, beta=0.1)")
 #
 # Dat ziet er al wat beter uit, maar de slope-volging geeft ook het volgen van de seizoensgebondenheid
 #
-reeks$yhat <- JT.des(reeks, alpha=0.1, beta=0.05)$yhat
-ggplot(data=reeks, aes(x=x)) + 
-  geom_line(aes(y=y), colour="black") + 
-  geom_line(aes(y=yhat), colour="red") +
+ap.df$des <- JT.des(reeks, alpha=0.1, beta=0.05)$yhat
+ggplot(data=ap.df, aes(x=tijd)) + 
+  geom_line(aes(y=x), colour="black") + 
+  geom_line(aes(y=des), colour="red") +
   labs(title="Double exponential smoothing (alpha=0.1, beta=0.05)")
 #
-reeks$yhat <- JT.des(reeks, alpha=0.05, beta=0.1)$yhat
-ggplot(data=reeks, aes(x=x)) + 
-  geom_line(aes(y=y), colour="black") + 
-  geom_line(aes(y=yhat), colour="red") +
+ap.df$des <- JT.des(reeks, alpha=0.05, beta=0.1)$yhat
+ggplot(data=ap.df, aes(x=tijd)) + 
+  geom_line(aes(y=x), colour="black") + 
+  geom_line(aes(y=des), colour="red") +
   labs(title="Double exponential smoothing (alpha=0.1, beta=0.05)")
+#
+# Werken met een polynoommodel
+model.pol <- lm(ap.df$x ~ poly(ap.df$tijd,3))
+summary(model.pol)
+# De berekende waarden zitten in model.pol$fitted.values
+ap.df$pol <- model.pol$fitted.values
+ggplot(data=ap.df, aes(x=tijd)) + 
+  geom_line(aes(y=x), colour="black") + 
+  geom_line(aes(y=pol), colour="red") +
+  labs(title="Polynoommodel (n=3)")
+#
+# Werken met een loess-kromme
+#
+model.loess <- loess(ap.df$x ~ as.numeric(rownames(ap.df)), span=0.5)
+ap.df$loess <- predict(model.loess)
+ggplot(data=ap.df, aes(x=tijd)) + 
+  geom_line(aes(y=x), colour="black") + 
+  geom_line(aes(y=loess), colour="red") +
+  labs(title="Loess-functie (span=0.5)")
 # Op zoek naar seasonality
 #
 # Groepering per quarter
