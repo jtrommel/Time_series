@@ -3,9 +3,9 @@
 # https://www.youtube.com/watch?v=85XU1T9DIps
 #
 # werken met beschikbare dataset "Airpassengers"
-require(tidyverse)
-require(lubridate)
-require(forecast)
+library(tidyverse)
+library(lubridate)
+library(forecast)
 data("AirPassengers")
 ap.df <- as.data.frame(AirPassengers)
 ap.df$x <- as.numeric(ap.df$x)
@@ -36,9 +36,9 @@ ggplot(data=ap.df) +
 # ook hier verlies van info naar het einde.
 #
 # Met functie rollmean van package "zoo"
-require(zoo)
+library(zoo)
 n <- 40
-ap.df$rollmean[1:(n-1)] <- NA
+ap.df$rollmean[1:nrow(ap.df)] <- NA
 ap.df$rollmean[n:nrow(ap.df)] <- rollmean(ap.df$x,n)
 ggplot(data=ap.df) +
   geom_line(aes(x=tijd,y=x)) +
@@ -48,7 +48,7 @@ ggplot(data=ap.df) +
 # moving average systeem: als er een trend is, dan wordt die pas laat opgepikt.
 # We kunnen dat gedeeltelijk opvangen door n kleiner te maken bv. n=12 (smoothing over 1 jaar)
 n <- 12
-ap.df$rollmean[1:(n-1)] <- NA
+ap.df$rollmean[1:nrow(ap.df)] <- NA
 ap.df$rollmean[n:nrow(ap.df)] <- rollmean(ap.df$x,n)
 ggplot(data=ap.df) +
   geom_line(aes(x=tijd,y=x)) +
@@ -86,6 +86,7 @@ JT.des <- function(serie.des, alpha=0.1, beta=0.1) {
   }
   return(serie.des)
 }
+reeks <- data.frame(x=c(1:nrow(ap.df)), y=ap.df$x)
 ap.df$des <- JT.des(reeks, alpha=0.1, beta=0.1)$yhat
 ggplot(data=ap.df, aes(x=tijd)) + 
   geom_line(aes(y=x), colour="black") + 
@@ -116,7 +117,7 @@ ggplot(data=ap.df, aes(x=tijd)) +
   geom_line(aes(y=pol), colour="red") +
   labs(title="Polynoommodel (n=3)")
 #
-# Werken met een loess-kromme
+# Werken met een loess-kromme: de berekende waarden moeten met predict bepaald worden!
 #
 model.loess <- loess(ap.df$x ~ as.numeric(rownames(ap.df)), span=0.5)
 ap.df$loess <- predict(model.loess)
@@ -124,6 +125,7 @@ ggplot(data=ap.df, aes(x=tijd)) +
   geom_line(aes(y=x), colour="black") + 
   geom_line(aes(y=loess), colour="red") +
   labs(title="Loess-functie (span=0.5)")
+#
 # Op zoek naar seasonality
 #
 # Groepering per quarter
@@ -149,3 +151,19 @@ ap.df.q %>% group_by(quarter) %>% summarise(avg=mean(ase)) -> ap.df.q.average
 ggplot(data=ap.df.q.average, aes(x=quarter, y=avg, group=1)) +
   geom_line() +
   labs(title="additive seasonal effect (average)")
+#
+# Adding the trend and the additive seasonal effect and finding the remainder
+# For the trend I take the polynomial because at the moment it seems the simplest.
+#
+ap.df$ase <- rep(ap.df.q.average$avg,12)
+ap.df$pol.ase <- ap.df$pol +ap.df$ase
+ap.df$remainder <- ap.df$x - ap.df$pol.ase
+result <- data.frame(tijd=rep(ap.df$tijd,4),
+                     deco=c(ap.df$x,ap.df$pol,ap.df$ase,ap.df$remainder),
+                     type=factor(rep(c("original","trend","season","remainder"),each=nrow(ap.df)),
+                                 levels=c("original","trend","season","remainder")))
+ggplot(data=result, aes(x=tijd,y=deco)) +
+  geom_line() +
+  facet_grid(type ~ ., scales = "free_y", switch = "y") +
+  labs(x="Date", y=NULL, title="Decompositie" , subtitle="Trend=poly, Season=ase")
+# Daar zit nog veel in de remainder!
