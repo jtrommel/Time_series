@@ -66,13 +66,13 @@ theme_ts <- theme(panel.border = element_rect(fill = NA, colour = "gray10"),
                   panel.grid.major = element_line(colour = "gray85"),
                   panel.grid.minor = element_line(colour = "gray85"),
                   panel.grid.major.x = element_line(colour = "gray85"),
-                  axis.text = element_text(size = 13 , face = "bold"),
-                  axis.title = element_text(size = 15 , face = "bold"),
-                  plot.title = element_text(size = 16 , face = "bold"),
-                  strip.text = element_text(size = 16 , face = "bold"),
+                  axis.text = element_text(size = 10 , face = "bold"),
+                  axis.title = element_text(size = 12 , face = "bold"),
+                  plot.title = element_text(size = 12 , face = "bold"),
+                  strip.text = element_text(size = 10 , face = "bold"),
                   strip.background = element_rect(colour = "black"),
-                  legend.text = element_text(size = 15),
-                  legend.title = element_text(size = 16 , face = "bold"),
+                  legend.text = element_text(size = 10),
+                  legend.title = element_text(size = 11 , face = "bold"),
                   legend.background = element_rect(fill = "white"),
                   legend.key = element_rect(fill = "white"))
 @
@@ -153,7 +153,7 @@ ggplot(data = data_train, aes(date_time, value)) +
 
 \section{STL-decomposition}
 
-A very useful method for visualization and analysis of time series is the \emph{STL decomposition}: S=seasonal, T=trend, L= Loess regression (the method used). We first have to transform our data in a times series object. This requires the parameter ''frequency". In our data\_train this is one week of observations which equals period\*7 readings.
+A very useful method for visualization and analysis of time series is the \emph{STL decomposition}: S=seasonal, T=trend, L= Loess regression (the method used). We first have to transform our data in a times series object. This requires the parameter ''frequency". In our data\_train this is one week of observations which equals period*7 readings.
 
 <<>>=
 data_ts <- ts(data_train$value, freq=period*7)
@@ -191,24 +191,24 @@ ggplot(data = decomp_stl, aes(x = Date, y = Load)) +
 
 We can see there is a trend: first an increase from week 1 to week 2, then a decrease from week 2 to 3. The remainder does not seem to be exactly ''white noise". Probably there are other elements at play (e.g. weather).
 
-\section{Poging tot eigen decompositie met lowess()}
+\section{Poging tot eigen decompositie met loess()}
 
-\subsection{Trend met lowess()}
+\subsection{Trend met loess()}
 <<>>=
-JT.train.trend <- lowess(data_train$value, f=0.33) # Gives smoothed values with default settings - 1008 values
-JT.rest <- data_train$value - JT.train.trend$y
-JT.decomp <- data.table(Load = c(data_train$value, JT.train.trend$y, JT.rest),
+JT.train.trend <- predict(loess(data_train$value ~ as.numeric(rownames(data_train)), span=0.33))
+JT.rest <- data_train$value - JT.train.trend
+JT.decomp <- data.table(Load = c(data_train$value, JT.train.trend, JT.rest),
                          Date = rep(data_train[,date_time], 3),
-                         Type = factor(rep(c("original data", "lowess data", "rest"), 
+                         Type = factor(rep(c("original data", "loess data", "rest"), 
                                            each = nrow(data_train)),
-                                       levels = c("original data", "lowess data", "rest")))
+                                       levels = c("original data", "loess data", "rest")))
 @
 
 <<label=JTtrend,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data = JT.decomp, aes(x = Date, y = Load)) + 
   geom_line() +
   facet_grid(Type ~ ., scales = "free_y", switch = "y") +
-  labs(x="Date", y=NULL, title="Trend met lowess()" ) + 
+  labs(x="Date", y=NULL, title="Trend met loess()" ) + 
   theme_ts
 @
 
@@ -249,11 +249,11 @@ for (i in (1:nrow(JT.season))) {
   }
 }
 JT.ruis <- JT.rest - JT.season$value
-JT.decomp <- data.table(Load = c(data_train$value, JT.train.trend$y, JT.rest, JT.season$value, JT.ruis),
+JT.decomp <- data.table(Load = c(data_train$value, JT.train.trend, JT.rest, JT.season$value, JT.ruis),
                          Date = rep(data_train[,date_time], 5),
-                         Type = factor(rep(c("original data", "lowess data", "rest", "season", "ruis"), 
+                         Type = factor(rep(c("original data", "loess data", "rest", "season", "ruis"), 
                                            each = nrow(data_train)),
-                                       levels = c("original data", "lowess data", "rest", "season", "ruis")))
+                                       levels = c("original data", "loess data", "rest", "season", "ruis")))
 @
 
 <<label=JTseason,fig=TRUE,include=FALSE, echo=FALSE>>=
@@ -264,6 +264,7 @@ ggplot(data = JT.decomp, aes(x = Date, y = Load)) +
   theme_ts
 @
 
+Not a great improvement vs. the STL-package!
 
 \section{Feature engineering with Fourier}
 
