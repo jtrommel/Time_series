@@ -1,0 +1,167 @@
+\documentclass{tufte-book}
+\usepackage{graphicx}  % werken met figuren
+\usepackage{gensymb} % werken met wetenschappelijke eenheden\usepackage{geometry}
+\usepackage{changepage} % http://ctan.org/pkg/changepage
+\usepackage[dutch,british]{babel} % instelling van de taal (woordsplitsing, spellingscontrole)
+\usepackage[parfill]{parskip} % Paragrafen gescheiden door witte lijn en geen inspringing
+\usepackage[font=small,skip=3pt]{caption} % Minder ruimte tussen figuur/table en ondertitel. Ondertitel klein
+\usepackage{capt-of}
+\usepackage{indentfirst}
+\setlength{\parindent}{0.7cm}
+\usepackage{enumitem} % Laat enumerate werken met letters
+\usepackage{url}
+\usepackage{lipsum}
+\setkeys{Gin}{width=\linewidth,totalheight=\textheight,keepaspectratio}
+% Prints a trailing space in a smart way.
+\usepackage{xspace}
+\usepackage{hyperref}
+\usepackage{amsmath}
+
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+
+% Alter some LaTeX defaults for better treatment of figures:
+% See p.105 of "TeX Unbound" for suggested values.
+% See pp. 199-200 of Lamport's "LaTeX" book for details.
+%   General parameters, for ALL pages:
+    \renewcommand{\topfraction}{0.9}	% max fraction of floats at top
+    \renewcommand{\bottomfraction}{0.9}	% max fraction of floats at bottom
+%   Parameters for TEXT pages (not float pages):
+    \setcounter{topnumber}{2}
+    \setcounter{bottomnumber}{2}
+    \setcounter{totalnumber}{4}     % 2 may work better
+    \renewcommand{\textfraction}{0.1}	% allow minimal text w. figs
+%   Parameters for FLOAT pages (not text pages):
+    \renewcommand{\floatpagefraction}{0.8}	% require fuller float pages
+% N.B.: floatpagefraction MUST be less than topfraction !!
+\setcounter{secnumdepth}{3}
+
+\newcommand{\tthdump}[1]{#1}
+
+\newcommand{\openepigraph}[2]{
+  \begin{fullwidth}
+  \sffamily\large
+    \begin{doublespace}
+      \noindent\allcaps{#1}\\ % epigraph
+      \noindent\allcaps{#2} % author
+    \end{doublespace}
+  \end{fullwidth}
+}
+
+
+\usepackage{makeidx}
+\makeindex
+
+\title{Time series}
+\author{Jan Trommelmans}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE,prefix.string=TS}
+\setkeys{Gin}{width=1.1\marginparwidth} %% Sweave
+
+\frontmatter
+
+\newpage\thispagestyle{empty}
+\openepigraph{
+It's tough to make predictions, especially about the future.
+}{Yogi Berra
+}
+
+\maketitle
+
+\chapter*{Introduction}
+\label{ch:introduction}
+
+In the ''Good Judgement Open" forecast tournament, many questions deal with time series: data obtained at regularly spaced time intervals. Examples are: daily closing price of Brent Crude Oil, polling results for different political parties prior to an election, the exchange rate of one currency vs. another. These time series can exhibit a number of properties:
+\begin{enumerate}
+  \item a \emph{trend}. This can take the form of a function (linear, polynomial, exponential ...) that we obtain from a model. Or it can be found in the form of calculated values using a smoothing operation.
+  \item a \emph{periodic} element. Again this can be modelled by a function (e.g. the sum of sine-funtion using the Discrete Fourier Transform of the (detrended) signal). Or it can take the form of calculated values such as Additive/Multiplicative Seasonal Effects.
+  \item an element of \emph{error}. This can be caused by unknown factors, unforeseen periodic influences, measuring and/or rounding errors etc.
+\end{enumerate}
+
+The programming language \textsf{R} has a specific object to work with time series. It is aptly named \emph{time series object}. This object does not only include the data that were recorded, but also information about the time it was recorded. \textsf{R} base has the \texttt{ts}-command which turns a vector or matrix of data into a time series object. When we want to transform our data into a time series object with \texttt{ts}, we have to include a parameter which is called \texttt{frequency}. This causes a lot of problems (for me a least).
+
+The aim of this article is to get some clarity about how to set this parameter \texttt{frequency} and its consequences when using \textsf{R} base languange or one of the many packages that were specifically developed for working with time series objects.
+
+\mainmatter
+
+\chapter{Working with time series in a standard data frame}
+\label{ch:data frame}
+
+\section{Making your own date column}
+\label{sec:own date column}
+
+\newthought{Time series data} are usually available as a vector or a matrix of numerical values. An example
+
+<<echo=FALSE>>=
+library(tidyverse)
+library(xtable)
+@
+
+<<echo=FALSE>>=
+JT.example1 <- c(2, 4, 1, 6, 3, 2, 8, 2, 5, 4)
+# xtable cannot handle a vector so we turn it into a matrix with one column
+JT.example1.df <- data.frame(value=JT.example1) 
+samenvatting<-xtable(JT.example1.df)
+@
+
+<<results=tex, echo=FALSE>>=
+print(samenvatting,scalebox='1',size="\\fontsize{9pt}{10pt}\\selectfont")
+@
+
+When these data are collected sequentially, the rownames give the order. In time series it is assumed that the time difference between two consecutive measurements is always the same. We can introduce a time variable into the data.frame and plot it with ggplot2 to get an idea of these date:
+
+<<label=JTex1,fig=TRUE,include=FALSE, echo=FALSE>>=
+JT.example1.df <- data.frame(time=c(1:length(JT.example1)), value=JT.example1)
+ggplot(data=JT.example1.df) +
+geom_line(aes(x=time, y=value))
+@
+
+\begin{marginfigure}
+\includegraphics[width=1\textwidth]{TS-JTex1}
+\label{fig:JTex1}
+\setfloatalignment{b}% forces caption to be bottom-aligned
+\end{marginfigure}
+
+<<echo=FALSE>>=
+samenvatting<-xtable(JT.example1.df)
+@
+
+<<results=tex, echo=FALSE>>=
+print(samenvatting,scalebox='1',size="\\fontsize{9pt}{10pt}\\selectfont")
+@
+
+\subsection{Something else}
+
+Hier komt vanalles te staan in subsection.
+
+\paragraph{Paragraafniveau}
+
+Paragraafniveau \url{http://www.latextemplates.com/templates/books/1/book_1_documentation.pdf}
+
+This is a very simple example\footnote{hier kan je een uitleg schrijven die in de marge komt} of how we might get started with Sweave. You know what comes next, right? That's right... Lorem Ipsum, ladies! 
+
+\newthought{In den beginne was} het woord. Voorbeeld van een sidenote: \sidenote[1][2cm]{Sidenote text.}
+
+Nu een voorbeeld van een marginnote: \marginnote[-1cm]{Een tekst in de marge van de hoofd-tekst.}
+
+Voorbeeld van de figure*-environment die de volledige bladbreedte gebruikt, marge incl.
+
+\begin{figure*}
+\includegraphics[width=1.2\textwidth]{TS-density}
+\captionof{figure}{Density plot}
+\label{fig:TS-densitybis}
+\end{figure*}
+
+Voorbeeld van de figure-environment:
+\begin{figure}
+\includegraphics[width=0.7\textwidth]{TS-density}
+\captionof{figure}{Density plot}
+\label{fig:TS-densitybis}
+\end{figure}
+
+Voorbeeld van de caption mogelijkheden:
+
+
+\lipsum
+
+\end{document}
