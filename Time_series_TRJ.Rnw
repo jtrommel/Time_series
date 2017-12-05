@@ -95,73 +95,142 @@ The aim of this article is to get some clarity about how to set this parameter \
 <<echo=FALSE>>=
 library(tidyverse)
 library(xtable)
+library(lubridate)
 @
 
+% Setting the ggplot theme:
 <<echo=FALSE>>=
-JT.example1 <- c(2, 4, 1, 6, 3, 2, 8, 2, 5, 4)
-# xtable cannot handle a vector so we turn it into a matrix with one column
+JT.theme <- theme(panel.border = element_rect(fill = NA, colour = "gray10"),
+                  panel.background = element_blank(),
+                  panel.grid.major = element_line(colour = "gray85"),
+                  panel.grid.minor = element_line(colour = "gray85"),
+                  panel.grid.major.x = element_line(colour = "gray85"),
+                  axis.text = element_text(size = 10 , face = "bold"),
+                  axis.title = element_text(size = 12 , face = "bold"),
+                  plot.title = element_text(size = 12 , face = "bold"),
+                  strip.text = element_text(size = 10 , face = "bold"),
+                  strip.background = element_rect(colour = "black"),
+                  legend.text = element_text(size = 10),
+                  legend.title = element_text(size = 11 , face = "bold"),
+                  legend.background = element_rect(fill = "white"),
+                  legend.key = element_rect(fill = "white"))
+@
+<<echo=FALSE>>=
+JT.example1 <- c(6, 5.5, 4.2, 2.8, 3.7, 7.1, 6.8, 4.4, 6.7, 7.9)
 JT.example1.df <- data.frame(value=JT.example1) 
-samenvatting<-xtable(JT.example1.df)
+print(JT.example1.df)
 @
 
-<<results=tex, echo=FALSE>>=
-print(samenvatting,scalebox='1',size="\\fontsize{9pt}{10pt}\\selectfont")
-@
-
-When these data are collected sequentially, the rownames give the order. In time series it is assumed that the time difference between two consecutive measurements is always the same. We can introduce a time variable into the data.frame and plot it with ggplot2 to get an idea of these date:
+When these data are collected sequentially, the rownames give the order. We put this order into a new variable ''nr".
 
 <<label=JTex1,fig=TRUE,include=FALSE, echo=FALSE>>=
-JT.example1.df <- data.frame(time=c(1:length(JT.example1)), value=JT.example1)
+JT.example1.df <- data.frame(nr=c(1:length(JT.example1)), value=JT.example1)
 ggplot(data=JT.example1.df) +
-geom_line(aes(x=time, y=value))
+  geom_point(aes(x=nr,y=value), size=3, color="red") +
+  geom_linerange(aes(x=nr,ymin=0,ymax=value),linetype=3, size=1) +
+  scale_x_continuous(breaks=c(1:length(JT.example1))) +
+  scale_y_continuous(breaks=seq(0,10,1)) +
+  labs(title="Example of equally spaced observations") +
+  JT.theme
 @
 
-\begin{marginfigure}
+\begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-JTex1}
 \label{fig:JTex1}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
 
+\newthought{Of course} it could be interesting to have the actual time (date + hms) at which the observations were made. The \texttt{lubridate}-package gives us simple to use and easy to understand function that we can use to create \texttt{date}-objects in R. For example: if the measurements were made on October 8th 2015, starting at 13:45 and done every minute we can create a column ''date" using \texttt{lubridate} and \texttt{seq}-function. Take care to set the ''by"-parameter with as.difftime().
+
+<<>>=
+Sys.setenv(TZ="Europe/Brussels")
+JT.example1.df$date <- seq(ymd_hms("2015-10-08 13:45:00"), 
+                           length = 10, by=as.difftime(minutes(1)))
+str(JT.example1.df)
+@
+
+We can see that the ''date"-variable has the class \texttt{date}.
+
 <<echo=FALSE>>=
-samenvatting<-xtable(JT.example1.df)
+print(JT.example1.df)
 @
 
-<<results=tex, echo=FALSE>>=
-print(samenvatting,scalebox='1',size="\\fontsize{9pt}{10pt}\\selectfont")
+ggplot can handle date-type variables. This has the advantage that the time-axis is now using the correct times at which the measurements were made.
+
+<<label=JTex2,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=JT.example1.df) +
+  geom_point(aes(x=date, y=value), size=3, color="red") +
+  geom_linerange(aes(x=date, ymin=0,ymax=value),linetype=3, size=1) +
+  scale_y_continuous(breaks=seq(0,10,1)) +
+  labs(title="Example of equally spaced observations with exact times") +
+  JT.theme
 @
 
-\subsection{Something else}
+\begin{marginfigure}[-7cm]
+\includegraphics[width=1\textwidth]{TS-JTex2}
+\label{fig:JTex2}
+\setfloatalignment{b}
+\end{marginfigure}
 
-Hier komt vanalles te staan in subsection.
+Other sequences can be generated in the same way:
 
-\paragraph{Paragraafniveau}
+<<>>=
+other.seq <- seq(from=ymd("2017-01-01"), 
+                 to=ymd("2017-01-31"), 
+                 by=as.difftime(days(2)))
+other.seq
+@
 
-Paragraafniveau \url{http://www.latextemplates.com/templates/books/1/book_1_documentation.pdf}
+\section{Finding a trend}
 
-This is a very simple example\footnote{hier kan je een uitleg schrijven die in de marge komt} of how we might get started with Sweave. You know what comes next, right? That's right... Lorem Ipsum, ladies! 
+\subsection{Trend in a formula}
 
-\newthought{In den beginne was} het woord. Voorbeeld van een sidenote: \sidenote[1][2cm]{Sidenote text.}
+The \texttt{lm}-function does not work with a date. It would not be a good idea to do so because it would try to put the intercept at date 0, which is probably the origin ot the date stamp which is 01-01-1970 by default. But we can always use the ''nr"-variable:
 
-Nu een voorbeeld van een marginnote: \marginnote[-1cm]{Een tekst in de marge van de hoofd-tekst.}
+<<>>=
+lin.model <- lm(JT.example1.df$value ~ JT.example1.df$nr)
+summary(lin.model)
+JT.example1.df$lin.mod <- lin.model$fitted.values
+@
 
-Voorbeeld van de figure*-environment die de volledige bladbreedte gebruikt, marge incl.
+<<label=JTlinmod,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=JT.example1.df) + 
+  geom_point(aes(x=date, y=value), size=3, color="red") +
+  geom_linerange(aes(x=date, ymin=0,ymax=value),linetype=3, size=1) +
+  geom_line(aes(x=date, y=lin.mod), color="blue") +
+  scale_y_continuous(breaks=seq(0,10,1)) +
+  labs(title="Trend by linear model") +
+  JT.theme
+@
 
-\begin{figure*}
-\includegraphics[width=1.2\textwidth]{TS-density}
-\captionof{figure}{Density plot}
-\label{fig:TS-densitybis}
-\end{figure*}
+\begin{marginfigure}[-7cm]
+\includegraphics[width=1\textwidth]{TS-JTlinmod}
+\label{fig:JTlinmod}
+\setfloatalignment{b}
+\end{marginfigure}
 
-Voorbeeld van de figure-environment:
-\begin{figure}
-\includegraphics[width=0.7\textwidth]{TS-density}
-\captionof{figure}{Density plot}
-\label{fig:TS-densitybis}
-\end{figure}
+The nice thing about using this model is that we get a formula for the trend. 
 
-Voorbeeld van de caption mogelijkheden:
+\subsection{Trend as a series of numbers}
 
+\textsf{R} has a number of inbuilt function to find a trend. Best known are the \testtt{loess}- and \texttt{lowess}-functions. \sidenote{There is an excellent YouTube video on the inner workings of the \texttt{loess}- and \texttt{lowess}-function: https://www.youtube.com/watch?v=85XU1T9DIps}
 
-\lipsum
+<<label=JTloessmod,fig=TRUE,include=FALSE, echo=FALSE>>=
+loess.model <- loess(JT.example1.df$value ~ JT.example1.df$nr, span=0.5)
+JT.example1.df$loess.mod <- predict(loess.model)
+ggplot(data=JT.example1.df) + 
+  geom_point(aes(x=date, y=value), size=3, color="red") +
+  geom_linerange(aes(x=date, ymin=0,ymax=value),linetype=3, size=1) +
+  geom_line(aes(x=date, y=loess.mod), color="blue") +
+  scale_y_continuous(breaks=seq(0,10,1)) +
+  labs(title="Trend by Loess-functie (span=0.5)") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-JTloessmod}
+\label{fig:JTloessmod}
+\setfloatalignment{b}
+\end{marginfigure}
 
 \end{document}
