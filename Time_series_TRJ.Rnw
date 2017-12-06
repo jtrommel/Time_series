@@ -135,7 +135,7 @@ ggplot(data=JT.example1.df) +
   JT.theme
 @
 
-\begin{marginfigure}[0cm]
+\begin{marginfigure}[-7cm]
 \includegraphics[width=1\textwidth]{TS-JTex1}
 \label{fig:JTex1}
 \setfloatalignment{b}% forces caption to be bottom-aligned
@@ -185,83 +185,115 @@ other.seq
 \newpage
 \section{Looking at the data}
 
-\newthought{Visualisation} of the data is a good first step because it gives an indication of the basic components of a time series and the way they are linked:
+\newthought{Visualisation} of the data is a good first step because it gives an indication of the basic components of a time series and the way they are linked. This ''linking" is usually described as \emph{additive} or \emph{multiplicative}. I will start with the \emph{additive} linking because I have some problems with the \emph{multiplicative}.
 
 \begin{enumerate}
-  \item: the \emph{level} of the signal. This is the average value of the series.
-  \item: the \emph{trend} of the signal: the change in the series from one period to the other
-  \item: the \emph{periodicity} or \emph{seasonality} of the signal: short term cyclical behaviour that can be observed several times in the series
-  \item: the \emph{noise} in the signal: random variation caused by measurement error of unknown factors
+  \item: the \emph{Level} of the signal: this is the average value of the series.
+  \item: the \emph{Trend} of the signal: the change in the series from one period to the other
+  \item: the \emph{Periodicity} or \emph{Seasonality} of the signal: short term cyclical behaviour that can be observed several times in the series
+  \item: the \emph{Noise} in the signal: random variation caused by measurement error or the influence of unknown factors
 \end{enumerate}
 
-The base signal is white noise: no level, no trend, no periodicity, just noise. Then we can superpose on this a level and/or a trend and/or periodicity. This superposition can be \texttt{additive} or \texttt{multiplicative}. These possibilities are summarized in Figure~\ref{fig:JTvisual}.
+\subsection{Additive components}
+The \emph{additive} linkage between these components is simple: the complete signal is the sum of all these terms:
+\begin{equation}
+y[t_{i}] = Level + Trend[t_{i}] + Periodicity[t_{i}] + Noise[t_{i}]
+\end{equation}
+
+This seems simple but there is an unusual use of the term \emph{Trend}. For a simple linear dependency of y on t (starting at $t_{start}$ and ending at $t_{end}$), for me the ''trend" is given by:
+\begin{equation}
+y(t)=b_{0}+b_{1} \left( t-t_{start}  \right)
+\end{equation}
+
+However: the \emph{Level} of the time seris is defined as its average and thus as a constant. Assuming that the averages of the periodic part and of the noise are zero, what remains is the average of the linear part $ y(t)=b_{0}+b_{1} \left( t-t_{start}  \right)$:
+\begin{equation}
+Level=\bar{y}=b_{0} + b_{1} \frac{\left( t_{end}-t_{start} \right)}{2} 
+\end{equation}
+
+This means that what is meant by \emph{Trend} is equal to:
+\begin{equation}
+Trend=y(t)-Level=b_{1}\left[ t-\frac{t_{start}+t_{end}}{2} \right]
+\end{equation}
+
+We can generalize this argument for a polynomial function (degree>2) of y. For example: a third degree polynomial for the ''trend":
+\begin{equation}
+y(t)=b_{0} + b_{1} \left( t-t_{start}  \right) + b_{2} \left( t-t_{start}  \right)^{2} + b_{3} \left( t-t_{start}  \right)^{3}
+\end{equation}
+
+The \emph{Level} is its mean value:
+\begin{equation}
+Level=\bar{y}=\frac{1}{t_{end}-t_{start}} \int\limits_{t_{start}}^{t_{end}} ydt=b_{0}+b_{1}\frac{t_{end}-t_{start}}{2} + b_{2}\frac{(t_{end}-t_{start})^{2}}{3} +  b_{3}\frac{(t_{end}-t_{start})^{3}}{4}
+\end{equation}
+
+and the \emph{Trend} is then:
+\begin{equation}
+Trend=y(t)-Level=b_{1}\left[ (t - t_{start}) - \frac{t_{end} - t_{start}}{2} \right] + b_{2}\left[ (t - t_{start})^{2} - \frac{(t_{end} - t_{start})^2}{3} \right] + b_{3}\left[ (t - t_{start})^{3} - \frac{(t_{end}-t_{start})^3}{4} \right]
+\end{equation}
+
+The base signal is white noise: no level, no trend, no periodicity, just noise. Then we can superpose on this a level and/or a trend and/or periodicity. We start with only \texttt{additive} superposition. The possible resulting signals are summarized in Figure~\ref{fig:JTvisual}.
 
 <<label=JTvisual,fig=TRUE,include=FALSE, echo=FALSE>>=
 set.seed(123)
-t <- c(1:100)
-level <- 2
-noise <- rnorm(100,0,0.5)
-trend <- 1 + 0.05*t
-poly <- 1 + 0.025*t + 0.0007*t^2 + 0.000002*t^3
-periodic <- sin(2*pi*t/20 + pi/3) + sin(2*pi*t/60 - pi/4)
-y11 <- level + noise
-y12 <- level + periodic + noise
-y13 <- level*periodic*noise
-y21 <- level + trend + noise
-y22 <- level + trend + periodic + noise
-y23 <- level*trend*periodic*noise
-y31 <- level + poly + noise
-y32 <- level + poly + periodic + noise
-y33 <- level*poly*periodic*noise
-signal <- data.frame(t=t, y11=y11, y12=y12, y13=y13,
-                     y21=y21, y22=y22, y23=y23,
-                     y31=y31, y32=y32, y33=y33)
+t <- c(0:100)
+tstart <- min(t)
+tend <- max(t)
+noise <- rnorm(101,0,0.5)
+# coefficients of the trend
+b0 <- 1
+b1 <- 0.05
+b2 <- 0.005
+b3 <- -0.00005
+level.fixed <- 0
+trend.fixed <- 0
+level.linear <- b0 + b1*(tend - tstart)/2
+trend.linear <- b1*(t - (tstart + tend)/2)
+level.poly <- b0 + b1*(tend-tstart)/2 +
+  b2*((tend-tstart)^2)/3 +
+  b3*((tend-tstart)^3)/4
+trend.poly <- b1*((t-tstart)-(tend-tstart)/2) +
+  b2*((t-tstart)^2 - ((tend-tstart)^2)/3) +
+  b3*((t-tstart)^3 - ((tend-tstart)^3)/4)
+periodic <- 2*sin(2*pi*t/20 + pi/3) + 0.2*sin(2*pi*t/60 - pi/4)
+y11 <- level.fixed + trend.fixed + noise
+y12 <- level.fixed + trend.fixed + periodic + noise
+y21 <- level.linear + trend.linear + noise
+y22 <- level.linear + trend.linear + periodic + noise
+y31 <- level.poly + trend.poly + noise
+y32 <- level.poly + trend.poly + periodic + noise
+signal <- data.frame(t=t, y11=y11, y12=y12,
+                     y21=y21, y22=y22,
+                     y31=y31, y32=y32)
 p11 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
+  geom_hline(yintercept=level.fixed) +
   geom_line(aes(y=y11), color="red") +
-  labs(title="level + noise") +
+  labs(title="(level + trend)=0 + noise") +
   JT.theme
 p12 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
+  geom_hline(yintercept=level.fixed) +
   geom_line(aes(y=y12), color="red") +
-  labs(title="level + periodic + noise") +
-  JT.theme
-p13 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
-  geom_line(aes(y=y13), color="red") +
-  labs(title="level*periodic*noise") +
+  labs(title="(level + trend)=0 + periodic + noise") +
   JT.theme
 p21 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
+  geom_hline(yintercept=level.linear) +
   geom_line(aes(y=y21), color="red") +
-  labs(title="level + trend + noise") +
+  labs(title="(level + trend)=linear + noise") +
   JT.theme
 p22 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
+  geom_hline(yintercept=level.linear) +
   geom_line(aes(y=y22), color="red") +
-  labs(title="level + trend + periodic + noise") +
-  JT.theme
-p23 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
-  geom_line(aes(y=y23), color="red") +
-  labs(title="level*trend*periodic*noise") +
+  labs(title="(level + trend)=linear + periodic + noise") +
   JT.theme
 p31 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
+  geom_hline(yintercept=level.poly) +
   geom_line(aes(y=y31), color="red") +
-  labs(title="level + poly + noise") +
+  labs(title="(level + trend)=poly + noise") +
   JT.theme
 p32 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
+  geom_hline(yintercept=level.poly) +
   geom_line(aes(y=y32), color="red") +
-  labs(title="level + poly + periodic + noise") +
+  labs(title="(level + trend)=poly + periodic + noise") +
   JT.theme
-p33 <- ggplot(data=signal, aes(x=t)) +
-  geom_hline(yintercept=level) +
-  geom_line(aes(y=y33), color="red") +
-  labs(title="level*poly*periodic*noise") +
-  JT.theme
-grid.arrange(p11,p12,p13,p21,p22,p23,p31,p32,p33,ncol=3)
+grid.arrange(p11,p12,p21,p22,p31,p32,ncol=2)
 @
 
 \begin{figure}
@@ -270,6 +302,8 @@ grid.arrange(p11,p12,p13,p21,p22,p23,p31,p32,p33,ncol=3)
 \label{fig:JTvisual}
 \setfloatalignment{b}
 \end{figure}
+
+\subsection{Multiplicative components}
 
 \newpage
 \section{Finding a trend}
