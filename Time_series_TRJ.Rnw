@@ -137,12 +137,13 @@ JTR.FFT <- function(signal.df) {
   freq <- seq(0, (Fs/2)-(Fs/N), Fs/N)
   freqspec <- data.frame(freq=freq,amp=P1[1:(N/2)],arg=Arg(z[1:(N/2)]))
   # Finding the most important elements in the frequency spectrum
-  grens <- max(freqspec$amp)/3
+  grens <- ifelse(freqspec$freq[freqspec$amp==max(freqspec$amp)]==0,max(freqspec$amp[2:nrow(freqspec),])/3,max(freqspec$amp)/3)
   aantal <- length(freqspec$amp[freqspec$amp>grens])
   resultaat <- data.frame(freq=rep(0,aantal), amp=rep(0,aantal), fasehoek=rep(0,aantal))
   resultaat <- data.frame(freq=freqspec$freq[freqspec$amp>grens],
                           amp=freqspec$amp[freqspec$amp>grens],
                           fasehoek_pi=freqspec$arg[freqspec$amp>grens]/pi)
+  resultaat <- resultaat[order(-resultaat$amp),]
   return(list("freqspec"=freqspec,"resultaat"=resultaat))
 }
 @
@@ -267,10 +268,10 @@ The base signal is white noise: no level, no trend, no periodicity, just noise. 
 
 <<label=JTvisual,fig=TRUE,include=FALSE, echo=FALSE>>=
 set.seed(123)
-t <- c(0:100)
+t <- c(0:99)
 tstart <- min(t)
 tend <- max(t)
-noise <- rnorm(101,0,0.5)
+noise <- rnorm(100,0,0.5)
 # coefficients of the trend
 b0 <- 1
 b1 <- 0.05
@@ -351,11 +352,15 @@ Level
 
 \newthought{The second step} is tricky: should we now try to find the Trend or go for the Periodic component?
 
-The Periodic component can add a lot of clutter to the data and influence the accuracy of the functions (lm, loess) that we use to find the Trend. However: looking for the existence of periodic elements with e.g. a Discrete Fourier Transform is hindered by the presence of a trend.
+The Periodic component can add a lot of clutter to the data and influence the accuracy of the functions (lm, loess) that we use to find the Trend. However: looking for the existence of periodic elements with e.g. a Discrete Fourier Transform is hindered by the presence of a trend. For example: if we define a variable y as:
+\begin{equation}
+y = 2sin(2 \pi t/10) + 1sin(2 \pi t/25 + \pi/6) \quad t \in [0:99]
+\end{equation}
 
 <<echo=FALSE>>=
-signal %>% select(t,y32) -> signal.y32
-period.info <- JTR.FFT(signal.y32)
+y <- 2*sin(2*pi*t/10) + sin(2*pi*t/25 + pi/6)
+signal.test <- data.frame(t=t,y=y)
+period.info <- JTR.FFT(signal.test)
 @
 
 <<label=FFTy32,fig=TRUE,include=FALSE, echo=FALSE>>=
@@ -366,13 +371,22 @@ ggplot(data=freqspec) +
   JT.theme
 @
 
-\begin{marginfigure}[-7cm]
+\begin{marginfigure}[5cm]
 \includegraphics[width=1\textwidth]{TS-FFTy32}
 \label{fig:FFTy32}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
 
-We can see the Level clearly in this graph: it's the value at frequency=0. Because the time-step is equal to 1, the sampling period $T_{s}$ is also equal to 1 and the sampling frequency $F_{s}=\frac{1}{T_{s}}=1$. The smaller frequencies that the FFT can find lie in the interval $ [0,\frac{F_{s}}{2}]=[0,0.5]$ and the frequency resolution is $\frac{F_{s}}{N}=\frac{1}{101} \approx 0.01Hz$.
+Because the time-step is equal to 1, the sampling period $T_{s}$ is also equal to 1 and the sampling frequency $F_{s}=\frac{1}{T_{s}}=1$. The smaller frequencies that the FFT can find lie in the interval $ [0,\frac{F_{s}}{2}]=[0,0.5]$ and the frequency resolution is $\frac{F_{s}}{N}=\frac{1}{100}= 0.01Hz$.
+
+The results of the Fourier analysis are:
+
+<<>>=
+period.info$resultaat
+@
+
+
+Apart from the Level value at 0Hz there is a second peak at 0.05Hz with an amplitude of 4.7 and a phase angle of 0.68$\pi$.
 
 \section{Finding a trend}
 
