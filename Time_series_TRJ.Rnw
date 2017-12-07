@@ -116,6 +116,37 @@ JT.theme <- theme(panel.border = element_rect(fill = NA, colour = "gray10"),
                   legend.background = element_rect(fill = "white"),
                   legend.key = element_rect(fill = "white"))
 @
+
+% Defining my functions
+<<echo=FALSE>>=
+JTR.FFT <- function(signal.df) {
+  # This function calculates the FFT for a time series stored in a data frame with as first column the time (or order of measurement) and as second column the vector of measurements.
+  # The result is a list. 
+  # The first element of the list is freqspec: the N frequencies plus for each frequency the amplitude and phase.
+  # The second element of the list is resultaat: a data frame with those frequencies for which the amplitude  are at least 33% of the maximum amplitude. The data frame is sorted from highes amplitude to lowest. This data fram can be seen as containing the most influencial frequencies.
+  signal <- signal.df
+  names(signal) <- c("t","x")
+  N <- nrow(signal)
+  Ts <- as.numeric(signal$t[2]-signal$t[1])
+  Fs <- 1/Ts
+  # Calculation of the double sided en single sided spectrum
+  z <- fft(signal$x)
+  P2 <- Mod(z/N)
+  P1 <- P2[1:((N/2)+1)]
+  P1[2:(length(P1)-1)] <- 2*P1[2:(length(P1)-1)]
+  freq <- seq(0, (Fs/2)-(Fs/N), Fs/N)
+  freqspec <- data.frame(freq=freq,amp=P1[1:(N/2)],arg=Arg(z[1:(N/2)]))
+  # Finding the most important elements in the frequency spectrum
+  grens <- max(freqspec$amp)/3
+  aantal <- length(freqspec$amp[freqspec$amp>grens])
+  resultaat <- data.frame(freq=rep(0,aantal), amp=rep(0,aantal), fasehoek=rep(0,aantal))
+  resultaat <- data.frame(freq=freqspec$freq[freqspec$amp>grens],
+                          amp=freqspec$amp[freqspec$amp>grens],
+                          fasehoek_pi=freqspec$arg[freqspec$amp>grens]/pi)
+  return(list("freqspec"=freqspec,"resultaat"=resultaat))
+}
+@
+
 <<echo=FALSE>>=
 JT.example1 <- c(6, 5.5, 4.2, 2.8, 3.7, 7.1, 6.8, 4.4, 6.7, 7.9)
 JT.example1.df <- data.frame(value=JT.example1) 
@@ -184,6 +215,7 @@ other.seq
 
 \newpage
 \section{Looking at the data}
+\label{sec:visualize}
 
 \newthought{Visualisation} of the data is a good first step because it gives an indication of the basic components of a time series and the way they are linked. This ''linking" is usually described as \emph{additive} or \emph{multiplicative}. I will start with the \emph{additive} linking because I have some problems with the \emph{multiplicative}.
 
@@ -194,7 +226,8 @@ other.seq
   \item: the \emph{Noise} in the signal: random variation caused by measurement error or the influence of unknown factors
 \end{enumerate}
 
-\subsection{Additive components}
+\subsection{Additive components of a time series}
+\label{subsec:additive}
 The \emph{additive} linkage between these components is simple: the complete signal is the sum of all these terms:
 \begin{equation}
 y[t_{i}] = Level + Trend[t_{i}] + Periodicity[t_{i}] + Noise[t_{i}]
@@ -303,9 +336,44 @@ grid.arrange(p11,p12,p21,p22,p31,p32,ncol=2)
 \setfloatalignment{b}
 \end{figure}
 
-\subsection{Multiplicative components}
-
 \newpage
+\subsection{Deconstruction of an additive time series}
+\label{subsec:deconstruct additive}
+
+The ''construction" of a signal in an additive way in \ref{subsec:additive} gives us the procedure to deconstruct a given time series. We illustrate it using the times series from Figure~\ref{fig:JTvisual} that has all the components: (level + trend)=polynomial + peridicity + noise (bottom right). This variable is stored in a vector called ''y32".
+
+\newthought{The first step}, finding the Level seems easy enough: just take the average of all data points.
+
+<<>>=
+Level <- mean(y32)
+Level
+@
+
+\newthought{The second step} is tricky: should we now try to find the Trend or go for the Periodic component?
+
+The Periodic component can add a lot of clutter to the data and influence the accuracy of the functions (lm, loess) that we use to find the Trend. However: looking for the existence of periodic elements with e.g. a Discrete Fourier Transform is hindered by the presence of a trend.
+
+<<echo=FALSE>>=
+signal %>% select(t,y32) -> signal.y32
+period.info <- JTR.FFT(signal.y32)
+@
+
+<<label=FFTy32,fig=TRUE,include=FALSE, echo=FALSE>>=
+freqspec <- period.info$freqspec
+ggplot(data=freqspec) + 
+  geom_line(aes(x=freq,y=amp)) +
+  labs(title="Frequency spectrum of y32") +
+  JT.theme
+@
+
+\begin{marginfigure}[-7cm]
+\includegraphics[width=1\textwidth]{TS-FFTy32}
+\label{fig:FFTy32}
+\setfloatalignment{b}% forces caption to be bottom-aligned
+\end{marginfigure}
+
+We can see the Level clearly in this graph: it's the value at frequency=0. Because the time-step is equal to 1, the sampling period $T_{s}$ is also equal to 1 and the sampling frequency $F_{s}=\frac{1}{T_{s}}=1$. The smaller frequencies that the FFT can find lie in the interval $ [0,\frac{F_{s}}{2}]=[0,0.5]$ and the frequency resolution is $\frac{F_{s}}{N}=\frac{1}{101} \approx 0.01Hz$.
+
 \section{Finding a trend}
 
 \subsection{Trend in a formula}
