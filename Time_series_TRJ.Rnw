@@ -371,7 +371,7 @@ ggplot(data=freqspec) +
   JT.theme
 @
 
-\begin{marginfigure}[8cm]
+\begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-FFT2sines}
 \label{fig:FFT2sines}
 \setfloatalignment{b}% forces caption to be bottom-aligned
@@ -380,14 +380,77 @@ ggplot(data=freqspec) +
 Because the time-step is equal to 1, the sampling period $T_{s}$ is also equal to 1 and the sampling frequency $F_{s}=\frac{1}{T_{s}}=1$. The smaller frequencies that the FFT can find lie in the interval $ [0,\frac{F_{s}}{2}]=[0,0.5]$ and the frequency resolution is $\frac{F_{s}}{N}=\frac{1}{100}= 0.01Hz$.
 
 The results of the Fourier analysis are:
+<<>>=
+period.info$resultaat
+@
+
+<<label=reconsine1,fig=TRUE,include=FALSE, echo=FALSE>>=
+signal.test$FFT <- period.info$resultaat$amp[1]*cos(2*pi*period.info$resultaat$freq[1]*t + period.info$resultaat$fasehoek_pi[1]*pi) + period.info$resultaat$amp[2]*cos(2*pi*period.info$resultaat$freq[2]*t + period.info$resultaat$fasehoek_pi[2]*pi)
+ggplot(data=signal.test, aes(x=t)) + 
+  geom_line(aes(y=y)) +
+  geom_line(aes(y=FFT), color="red") +
+  labs(title="Reconstruction of two sines. t=[0:99]") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-reconsine1}
+\label{fig:reconsine1}
+\setfloatalignment{b}% forces caption to be bottom-aligned
+\end{marginfigure}
+
+So this is very clear: it discovers the two sinuses with the correct amplitude and frequency: 0.1 Hz (=1:10) and 0.04 Hz (=1:25). The phase angle seems wrong but this is because the FFT-transform works with the cosine: $sin(x)=cos(x - \pi/2)=cos(x-0.5\pi)$ and $sin(x+\pi/6)=cos(x-\pi/3)=cos(x-0.333\pi)$.
+
+\newthought{When we change} the number of samples, it will change the frequency resolution. This means that the samples will not necessarily contain the zero-points of the sines, or their maximum value. However, FFT solves this by choosing an appropriate phase angle. For example: when we redo the analysis of the signal that is the result of the summation of two sine-functions but we change the number of samples (instead of t=[0..99], N=100 we use t=[0..100], N=101) we get the following results:
+
+<<echo=FALSE>>=
+t1 <- c(0:100)
+y <- 2*sin(2*pi*t1/10) + sin(2*pi*t1/25 + pi/6)
+signal.test <- data.frame(t=t1,y=y)
+period.info <- JTR.FFT(signal.test)
+@
+
+<<label=FFT2sinesb,fig=TRUE,include=FALSE, echo=FALSE>>=
+freqspec <- period.info$freqspec
+ggplot(data=freqspec) + 
+  geom_line(aes(x=freq,y=amp)) +
+  labs(title="Frequency spectrum of two sines. t=[0:100]") +
+  JT.theme
+@
+
+\begin{marginfigure}[-2cm]
+\includegraphics[width=1\textwidth]{TS-FFT2sinesb}
+\label{fig:FFT2sinesb}
+\setfloatalignment{b}% forces caption to be bottom-aligned
+\end{marginfigure}
+
+The results of the Fourier analysis are:
 
 <<>>=
 period.info$resultaat
 @
 
-So this is very clear: it discovers the two sinuses with the correct amplitude and frequency: 0.1 Hz (=1:10) and 0.04 Hz (=1:25). The phase angle seems wrong but this is because the FFT-transform works with the cosine: $sin(x)=cos(x - \pi/2)=cos(x-0.5\pi)$ and $sin(x+\pi/6)=cos(x-\pi/3)=cos(x-0.333\pi)$.
+The frequencies and amplitude are very close to the correct value, but the phase angle is very different. When we compare the original function with the reconstructed function based on the FFT-analysis we get a good approximaton:
 
-However, if we add a linear trend to the variable y it becomes:
+<<echo=FALSE>>=
+signal.test$FFT <- period.info$resultaat$amp[1]*cos(2*pi*period.info$resultaat$freq[1]*t1 + period.info$resultaat$fasehoek_pi[1]*pi) + period.info$resultaat$amp[2]*cos(2*pi*period.info$resultaat$freq[2]*t1 + period.info$resultaat$fasehoek_pi[2]*pi)
+@
+
+<<label=reconsine2,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=signal.test, aes(x=t)) + 
+  geom_line(aes(y=y)) +
+  geom_line(aes(y=FFT), color="red") +
+  labs(title="Reconstruction of two sines. t=[0:100]") +
+  JT.theme
+@
+
+\begin{marginfigure}[-2cm]
+\includegraphics[width=1\textwidth]{TS-reconsine2}
+\label{fig:reconsine2}
+\setfloatalignment{b}% forces caption to be bottom-aligned
+\end{marginfigure}
+
+\newthought{The consequences of adding a trend} are however very disruptive to the behaviour of the FFT. For example, when we add a linear trend to the variable y it becomes:
 \begin{equation}
 y = 0.5t + 2sin(2 \pi t/10) + 1sin(2 \pi t/25 + \pi/6) \quad t \in [0:99]
 \end{equation}
@@ -406,7 +469,7 @@ ggplot(data=freqspec) +
   JT.theme
 @
 
-\begin{marginfigure}[2cm]
+\begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-FFTsines_lin}
 \label{fig:FFTsines_lin}
 \setfloatalignment{b}% forces caption to be bottom-aligned
@@ -418,54 +481,23 @@ The results of the Fourier analysis are:
 period.info$resultaat
 @
 
-The high value at 0Hz is the average value (the Level). But the sine-functions at 0.04Hz and 0.1Hz have vanished while the function generates spurious sines of 0.01Hz to 0.03Hz.
-
-\newthought{FFT is very sensitive} to the right choice of the frequency resolution. When we redo the analysis of the two sines but change the time variable a little bit (instead of t=[0..99] we use t=[0..100]) we get the following results:
+The high value at 0Hz is the average value (the Level). But the sine-functions at 0.04Hz and 0.1Hz have vanished while the function generates spurious sines at 0.01Hz to 0.03Hz. The reconstructed signal is a long way of the original function (Figure~\ref{fig:reconsine3})
 
 <<echo=FALSE>>=
-t1 <- c(0:100)
-y <- 2*sin(2*pi*t1/10) + sin(2*pi*t1/25 + pi/6)
-signal.test <- data.frame(t=t1,y=y)
-period.info <- JTR.FFT(signal.test)
+signal.test$FFT <- period.info$resultaat$amp[1]*cos(2*pi*period.info$resultaat$freq[1]*t + period.info$resultaat$fasehoek_pi[1]*pi) + period.info$resultaat$amp[2]*cos(2*pi*period.info$resultaat$freq[2]*t + period.info$resultaat$fasehoek_pi[2]*pi)
 @
 
-<<label=FFT2sinesb,fig=TRUE,include=FALSE, echo=FALSE>>=
-freqspec <- period.info$freqspec
-ggplot(data=freqspec) + 
-  geom_line(aes(x=freq,y=amp)) +
-  labs(title="Frequency spectrum of two sines. t=[0:100]") +
-  JT.theme
-@
-
-\begin{marginfigure}[3cm]
-\includegraphics[width=1\textwidth]{TS-FFT2sinesb}
-\label{fig:FFT2sinesb}
-\setfloatalignment{b}% forces caption to be bottom-aligned
-\end{marginfigure}
-
-The results of the Fourier analysis are:
-
-<<>>=
-period.info$resultaat
-@
-
-The frequencies and amplitude are very close to the correct value, but the phase angle is very different. When we compare the original function with the reconstructed function based on the FFT-analysis we get this:
-
-<<echo=FALSE>>=
-signal.test$FFT <- period.info$resultaat$amp[1]*cos(2*pi*period.info$resultaat$freq[1]*t1 + period.info$resultaat$fasehoek_pi[1]*pi) + period.info$resultaat$amp[2]*cos(2*pi*period.info$resultaat$freq[2]*t1 + period.info$resultaat$fasehoek_pi[2]*pi)
-@
-
-<<label=reconsine,fig=TRUE,include=FALSE, echo=FALSE>>=
+<<label=reconsine3,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=signal.test, aes(x=t)) + 
   geom_line(aes(y=y)) +
-  geom_line(aes(y=FFT), color="red")
-  labs(title="Reconstruction of two sines. t=[0:100]") +
+  geom_line(aes(y=FFT), color="red") +
+  labs(title="Reconstruction of two sines with linear trend") +
   JT.theme
 @
 
 \begin{marginfigure}[0cm]
-\includegraphics[width=1\textwidth]{TS-reconsine}
-\label{fig:reconsine}
+\includegraphics[width=1\textwidth]{TS-reconsine3}
+\label{fig:reconsine3}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
 
