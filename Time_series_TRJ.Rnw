@@ -108,7 +108,7 @@ JT.theme <- theme(panel.border = element_rect(fill = NA, colour = "gray10"),
                   panel.grid.major.x = element_line(colour = "gray85"),
                   axis.text = element_text(size = 8 , face = "bold"),
                   axis.title = element_text(size = 9 , face = "bold"),
-                  plot.title = element_text(size = 10 , face = "bold"),
+                  plot.title = element_text(size = 12 , face = "bold"),
                   strip.text = element_text(size = 8 , face = "bold"),
                   strip.background = element_rect(colour = "black"),
                   legend.text = element_text(size = 8),
@@ -169,6 +169,7 @@ ggplot(data=JT.example1.df) +
 
 \begin{marginfigure}[-7cm]
 \includegraphics[width=1\textwidth]{TS-JTex1}
+\caption{}
 \label{fig:JTex1}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -201,6 +202,7 @@ ggplot(data=JT.example1.df) +
 
 \begin{marginfigure}[-7cm]
 \includegraphics[width=1\textwidth]{TS-JTex2}
+\caption{}
 \label{fig:JTex2}
 \setfloatalignment{b}
 \end{marginfigure}
@@ -287,7 +289,7 @@ level.poly <- b0 + b1*(tend-tstart)/2 +
 trend.poly <- b1*((t-tstart)-(tend-tstart)/2) +
   b2*((t-tstart)^2 - ((tend-tstart)^2)/3) +
   b3*((t-tstart)^3 - ((tend-tstart)^3)/4)
-periodic <- 2*sin(2*pi*t/20) + sin(2*pi*t/25 + pi/6)
+periodic <- 2*sin(2*pi*t/10) + sin(2*pi*t/25 + pi/6)
 y11 <- level.fixed + trend.fixed + noise
 y12 <- level.fixed + trend.fixed + periodic + noise
 y21 <- level.linear + trend.linear + noise
@@ -373,6 +375,7 @@ ggplot(data=freqspec) +
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-FFT2sines}
+\caption{}
 \label{fig:FFT2sines}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -395,6 +398,7 @@ ggplot(data=signal.test, aes(x=t)) +
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-reconsine1}
+\caption{}
 \label{fig:reconsine1}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -420,6 +424,7 @@ ggplot(data=freqspec) +
 
 \begin{marginfigure}[-2cm]
 \includegraphics[width=1\textwidth]{TS-FFT2sinesb}
+\caption{}
 \label{fig:FFT2sinesb}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -446,6 +451,7 @@ ggplot(data=signal.test, aes(x=t)) +
 
 \begin{marginfigure}[-2cm]
 \includegraphics[width=1\textwidth]{TS-reconsine2}
+\caption{}
 \label{fig:reconsine2}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -471,6 +477,7 @@ ggplot(data=freqspec) +
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-FFT2sinesnoise}
+\caption{}
 \label{fig:FFT2sinesnoise}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -491,6 +498,7 @@ ggplot(data=signal.test, aes(x=t)) +
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-reconsinenoise}
+\caption{}
 \label{fig:reconsinenoise}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -519,6 +527,7 @@ ggplot(data=freqspec) +
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-FFTsines_lin}
+\caption{}
 \label{fig:FFTsines_lin}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -545,6 +554,7 @@ ggplot(data=signal.test, aes(x=t)) +
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-reconsine3}
+\caption{}
 \label{fig:reconsine3}
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
@@ -556,30 +566,33 @@ ggplot(data=signal.test, aes(x=t)) +
 
 \subsection{Linear models}
 
-\newthought{To investigate different methods for finding the trend} we will use as an example a data series constructed with a Level, a (polynomial) Trend, periodicity (sum of two sines) and noise. This is the series y32 at the bottom right of Figure~\ref{fig:JTvisual}.
+\newthought{To investigate different methods for finding the Trend} we will use as an example a data series constructed with a Level, a (polynomial) Trend, periodicity (sum of two sines) and noise. This is the series y32 at the bottom right of Figure~\ref{fig:JTvisual}. We first substract the Level from all values.
 
 The \texttt{lm}-function does not work with date-type variables. It would not be a good idea to do so because it would try to put the intercept at date 0, which is probably the origin of the date stamp which is 01-01-1970 by default. But we can always use the index-variable, in this case the variable t.
 
 \newthought{Let's start with a first degree linear model}:
 
 <<>>=
-lin.model <- lm(signal$y32 ~ signal$t)
+Level <- mean(signal$y32)
+signal$y32L <- signal$y32 - Level
+lin.model <- lm(signal$y32L ~ signal$t)
 summary(lin.model)
 signal$lin.mod.y32 <- lin.model$fitted.values
 @
 
 <<label=JTlinmod,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=signal) + 
-  geom_point(aes(x=t, y=y32), size=1, color="red") +
-  geom_linerange(aes(x=t, ymin=0,ymax=y32),linetype=3, size=0.5) +
+  geom_point(aes(x=t, y=y32L), size=1, color="red") +
+  geom_linerange(aes(x=t, ymin=0,ymax=y32L),linetype=3, size=0.5) +
   geom_line(aes(x=t, y=lin.mod.y32), color="blue") +
-  scale_y_continuous(breaks=seq(-5,15,1)) +
-  labs(title="Trend of y32 by linear model") +
+  scale_y_continuous(breaks=seq(-10,10,1)) +
+  labs(title="Trend of y32 without Level using a linear model") +
   JT.theme
 @
 
-\begin{marginfigure}[0cm]
+\begin{marginfigure}[-2cm]
 \includegraphics[width=1\textwidth]{TS-JTlinmod}
+\caption{}
 \label{fig:JTlinmod}
 \setfloatalignment{b}
 \end{marginfigure}
@@ -589,23 +602,24 @@ The nice thing about using this model is that we get a formula for the trend. Ho
 \newthought{A polynomial model}
 We don't know the degree of the polynomial that will be the best fit. Making this degree too hight risks getting an overfit. Let's start with a third degree polynomial:
 <<>>=
-poly3.model <- lm(signal$y32 ~ signal$t + I(signal$t^2) + I(signal$t^3))
+poly3.model <- lm(signal$y32L ~ signal$t + I(signal$t^2) + I(signal$t^3))
 summary(poly3.model)
 signal$poly3.mod.y32 <- poly3.model$fitted.values
 @
 
 <<label=JTpoly3mod,fig=TRUE,include=FALSE, echo=FALSE>>=
 ggplot(data=signal) + 
-  geom_point(aes(x=t, y=y32), size=1, color="red") +
-  geom_linerange(aes(x=t, ymin=0,ymax=y32),linetype=3, size=0.5) +
+  geom_point(aes(x=t, y=y32L), size=1, color="red") +
+  geom_linerange(aes(x=t, ymin=0,ymax=y32L),linetype=3, size=0.5) +
   geom_line(aes(x=t, y=poly3.mod.y32), color="blue") +
-  scale_y_continuous(breaks=seq(-5,15,1)) +
-  labs(title="Trend of y32 by polynomial model") +
+  scale_y_continuous(breaks=seq(-10,10,1)) +
+  labs(title="Trend of y32 without Level using a polynomial model") +
   JT.theme
 @
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-JTpoly3mod}
+\caption{}
 \label{fig:JTpoly3mod}
 \setfloatalignment{b}
 \end{marginfigure}
@@ -613,48 +627,117 @@ ggplot(data=signal) +
 Much better: the $R^{2}$-value (\Sexpr{round(summary(poly3.model)$r.squared,4)}) is high. All coefficients have low p-values. We have to treat these with caution. We could try polynomials of lower (2) and higher (4) degree and see the evolution of the adjusted $R^{2}$-value.
 
 <<echo=FALSE>>=
-poly2.model <- lm(signal$y32 ~ signal$t + I(signal$t^2))
-poly4.model <- lm(signal$y32 ~ signal$t + I(signal$t^2) + I(signal$t^3) + I(signal$t^4))
+poly2.model <- lm(signal$y32L ~ signal$t + I(signal$t^2))
+poly4.model <- lm(signal$y32L ~ signal$t + I(signal$t^2) + I(signal$t^3) + I(signal$t^4))
 @
 
-<<>>=
+<<echo=FALSE>>=
 AdjRsq <- data.frame(degree=c(2:4),
                      AdjustedRsquared=c(round(summary(poly2.model)$adj.r.squared,4),
                                         round(summary(poly3.model)$adj.r.squared,4),
                                         round(summary(poly4.model)$adj.r.squared,4)))
+@
+
+<<>>=
 AdjRsq
 @
 
 The third-degree polynomial seems to avoid overfitting.
 
+\newthought{Caution!} The polynomial seems to be a good fit to the data, but it is probably very dangerous to work with this polynomial \emph{outside} the interval in which it is defined. Extrapolating a polynomial, which we would do if we used the polynomial for forecasting, can lead to big errors.
+
 \newpage
 \subsection{Trend as a series of numbers}
 
-\textsf{R} has a number of inbuilt function to find a trend. Best known are the \texttt{loess}- and \texttt{lowess}-functions. \sidenote[][-1cm]{There is an excellent YouTube video on the inner workings of the \texttt{loess}- and \texttt{lowess}-function: \url{https://www.youtube.com/watch?v=85XU1T9DIps}}
+\newthought{\textsf{R} has a number of inbuilt functions} to find a trend. Best known are the \texttt{loess}- and \texttt{lowess}-functions. \sidenote[][-1cm]{There is an excellent YouTube video on the inner workings of the \texttt{loess}- and \texttt{lowess}-function: \url{https://www.youtube.com/watch?v=85XU1T9DIps}}
 
 <<label=JTloessmod,fig=TRUE,include=FALSE, echo=FALSE>>=
-loess.model <- loess(JT.example1.df$value ~ JT.example1.df$nr, span=0.9, degree=1)
-JT.example1.df$loess.mod <- predict(loess.model)
-ggplot(data=JT.example1.df) + 
-  geom_point(aes(x=date, y=value), size=3, color="red") +
-  geom_linerange(aes(x=date, ymin=0,ymax=value),linetype=3, size=1) +
-  geom_line(aes(x=date, y=loess.mod), color="blue") +
-  scale_y_continuous(breaks=seq(0,10,1)) +
-  labs(title="Trend by Loess-function (span=0.9, degree=1)") +
+loess.model <- loess(signal$y32L ~ signal$t, span=0.9, degree=1)
+signal$loess.y32L <- predict(loess.model)
+ggplot(data=signal) + 
+  geom_point(aes(x=t, y=y32L), size=1, color="red") +
+  geom_linerange(aes(x=t, ymin=0,ymax=y32L),linetype=3, size=0.5) +
+  geom_line(aes(x=t, y=loess.y32L), color="blue") +
+  scale_y_continuous(breaks=seq(-10,10,1)) +
+  labs(title="Trend of y32 without Level with Loess-function (span=0.9, degree=1)") +
   JT.theme
 @
 
 \begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-JTloessmod}
+\caption{}
 \label{fig:JTloessmod}
 \setfloatalignment{b}
 \end{marginfigure}
 
-However, using the \texttt{loess}-function is not straigthforward because it implies setting parameters like \texttt{span}, \texttt{degree}, \texttt{family} etc. Different choices give different trend lines. There is some subjectiveness in this process. There is the alternative \texttt{lowess}-function. The following quote gives some background as to the differences between both functions: \quote{The main difference with respect to the first is that lowess allows only one predictor, whereas loess can be used to smooth multivariate data into a kind of surface. It also gives you confidence intervals. In these senses, loess is a generalization. Both use tricube weighting in the local regression.} \sidenote{\url{https://stats.stackexchange.com/questions/161069/difference-between-loess-and-lowess}}.
+However, using the \texttt{loess}-function is not straigthforward because it implies setting parameters like \texttt{span}, \texttt{degree}, \texttt{family} etc. Different choices give different trend lines. There is some subjectiveness in this process. There is the alternative \texttt{lowess}-function. The following quote gives some background as to the differences between both functions: 
+\medskip
+
+''The main difference with respect to the first is that lowess allows only one predictor, whereas loess can be used to smooth multivariate data into a kind of surface. It also gives you confidence intervals. In these senses, loess is a generalization. Both use tricube weighting in the local regression." \sidenote{\url{https://stats.stackexchange.com/questions/161069/difference-between-loess-and-lowess}}.
+
+\newthought{The successful method} for finding the Trend will be the one that simplifies the subsequent analysis of Periodicity and Noise. Let us look at the remaining signal when we substract from the original y32-signal the Level and the Trend. We look at two situations: one with the Trend as a polynomial of degree 3 (blue), and one with the Trend determined by the \texttt{loess}-function (red). The blue line (poly) seems to give the better result.
+
+<<label=JTcompareTrend,fig=TRUE,include=FALSE, echo=FALSE>>=
+signal$y32LTpoly <- signal$y32L - signal$poly3.mod.y32
+signal$y32LTloess <- signal$y32L - signal$loess.y32L
+ggplot(data=signal) +
+  geom_line(aes(x=t, y=y32LTpoly), color="blue") +
+  geom_line(aes(x=t, y=y32LTloess), color="red") +
+  scale_y_continuous(breaks=seq(-10,10,1)) +
+  labs(title="y32 without Level and Trend calculated with \n polynomial (blue) and Loess (red)") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-JTcompareTrend}
+\caption{}
+\label{fig:JTcompareTrend}
+\setfloatalignment{b}
+\end{marginfigure}
 
 \section{Finding periodicity}
 
-\newthought{We can decompose} the signal by finding the level
+\newthought{At the moment} we have found the Level and the Trend, the latter in two ways. We can now find the periodicity using the Discrete Fourier Transform on the signal minus Level and Trend. 
 
+<<echo=FALSE>>=
+signal %>% select(t,y32LTpoly) -> signal.test
+period.info <- JTR.FFT(signal.test)
+freqspec <- period.info$freqspec
+p1 <- ggplot(data=freqspec) + 
+  geom_line(aes(x=freq,y=amp)) +
+  labs(title="Frequency spectrum of y32 \n without Level and Trend (poly)") +
+  JT.theme
+@
+
+<<>>=
+period.info$resultaat
+@
+
+<<echo=FALSE>>=
+signal %>% select(t,y32LTloess) -> signal.test
+period.info <- JTR.FFT(signal.test)
+freqspec <- period.info$freqspec
+p2 <- ggplot(data=freqspec) + 
+  geom_line(aes(x=freq,y=amp)) +
+  labs(title="Frequency spectrum of y32 \n without Level and Trend (loess)") +
+  JT.theme
+@
+
+<<>>=
+period.info$resultaat
+@
+
+<<label=JTcompare,fig=TRUE,include=FALSE, echo=FALSE>>=
+grid.arrange(p1,p2,ncol=2)
+@
+
+\begin{marginfigure}[-2cm]
+\includegraphics[width=1\textwidth]{TS-JTcompare}
+\caption{}
+\label{fig:JTcompare}
+\setfloatalignment{b}
+\end{marginfigure}
+
+Finding the periodicity based on a polynomial function for the trend gives the best results.
 
 \end{document}
