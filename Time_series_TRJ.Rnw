@@ -287,7 +287,7 @@ level.poly <- b0 + b1*(tend-tstart)/2 +
 trend.poly <- b1*((t-tstart)-(tend-tstart)/2) +
   b2*((t-tstart)^2 - ((tend-tstart)^2)/3) +
   b3*((t-tstart)^3 - ((tend-tstart)^3)/4)
-periodic <- 2*sin(2*pi*t/20 + pi/3) + 0.2*sin(2*pi*t/60 - pi/4)
+periodic <- 2*sin(2*pi*t/20) + sin(2*pi*t/25 + pi/6)
 y11 <- level.fixed + trend.fixed + noise
 y12 <- level.fixed + trend.fixed + periodic + noise
 y21 <- level.linear + trend.linear + noise
@@ -450,6 +450,54 @@ ggplot(data=signal.test, aes(x=t)) +
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
 
+\newthought{Adding noise} to the signal does not disturb the Discrete Fourier Transform.
+\begin{equation}
+y = 2sin(2 \pi t/10) + 1sin(2 \pi t/25 + \pi/6) + rnorm(100,0,0.5) \quad t \in [0:99]
+\end{equation}
+
+<<echo=FALSE>>=
+y <- 2*sin(2*pi*t/10) + sin(2*pi*t/25 + pi/6) + noise
+signal.test <- data.frame(t=t,y=y)
+period.info <- JTR.FFT(signal.test)
+@
+
+<<label=FFT2sinesnoise,fig=TRUE,include=FALSE, echo=FALSE>>=
+freqspec <- period.info$freqspec
+ggplot(data=freqspec) + 
+  geom_line(aes(x=freq,y=amp)) +
+  labs(title="Frequency spectrum of two sines + noise.") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-FFT2sinesnoise}
+\label{fig:FFT2sinesnoise}
+\setfloatalignment{b}% forces caption to be bottom-aligned
+\end{marginfigure}
+
+The results of the Fourier analysis are:
+<<>>=
+period.info$resultaat
+@
+
+<<label=reconsinenoise,fig=TRUE,include=FALSE, echo=FALSE>>=
+signal.test$FFT <- period.info$resultaat$amp[1]*cos(2*pi*period.info$resultaat$freq[1]*t + period.info$resultaat$fasehoek_pi[1]*pi) + period.info$resultaat$amp[2]*cos(2*pi*period.info$resultaat$freq[2]*t + period.info$resultaat$fasehoek_pi[2]*pi)
+ggplot(data=signal.test, aes(x=t)) + 
+  geom_line(aes(y=y)) +
+  geom_line(aes(y=FFT), color="red") +
+  labs(title="Reconstruction of two sines + noise") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-reconsinenoise}
+\label{fig:reconsinenoise}
+\setfloatalignment{b}% forces caption to be bottom-aligned
+\end{marginfigure}
+
+The reconstructed signal is not perfect, but that is to be expected because the noise has been filtered out by the FFT.
+
+\newpage
 \newthought{The consequences of adding a trend} are however very disruptive to the behaviour of the FFT. For example, when we add a linear trend to the variable y it becomes:
 \begin{equation}
 y = 0.5t + 2sin(2 \pi t/10) + 1sin(2 \pi t/25 + \pi/6) \quad t \in [0:99]
@@ -481,7 +529,7 @@ The results of the Fourier analysis are:
 period.info$resultaat
 @
 
-The high value at 0Hz is the average value (the Level). But the sine-functions at 0.04Hz and 0.1Hz have vanished while the function generates spurious sines at 0.01Hz to 0.03Hz. The reconstructed signal is a long way of the original function (Figure~\ref{fig:reconsine3})
+The high value at 0Hz is the average value (the Level). But the sine-functions at 0.04Hz and 0.1Hz have vanished while the function generates spurious sines at 0.01Hz to 0.03Hz. The reconstructed signal is a long way from the original function (Figure~\ref{fig:reconsine3})
 
 <<echo=FALSE>>=
 signal.test$FFT <- period.info$resultaat$amp[1]*cos(2*pi*period.info$resultaat$freq[1]*t + period.info$resultaat$fasehoek_pi[1]*pi) + period.info$resultaat$amp[2]*cos(2*pi*period.info$resultaat$freq[2]*t + period.info$resultaat$fasehoek_pi[2]*pi)
@@ -501,36 +549,83 @@ ggplot(data=signal.test, aes(x=t)) +
 \setfloatalignment{b}% forces caption to be bottom-aligned
 \end{marginfigure}
 
+\newthought{Conclusion at this moment}: the Discrete Fourier Transform is a powerful method for finding the periodic component, \emph{provided the trend has been eliminated.}
+
 \newpage
-\section{Finding a trend}
+\section{Finding the trend}
 
-\subsection{Trend in a formula}
+\subsection{Linear models}
 
-The \texttt{lm}-function does not work with a date. It would not be a good idea to do so because it would try to put the intercept at date 0, which is probably the origin ot the date stamp which is 01-01-1970 by default. But we can always use the ''nr"-variable:
+\newthought{To investigate different methods for finding the trend} we will use as an example a data series constructed with a Level, a (polynomial) Trend, periodicity (sum of two sines) and noise. This is the series y32 at the bottom right of Figure~\ref{fig:JTvisual}.
+
+The \texttt{lm}-function does not work with date-type variables. It would not be a good idea to do so because it would try to put the intercept at date 0, which is probably the origin of the date stamp which is 01-01-1970 by default. But we can always use the index-variable, in this case the variable t.
+
+\newthought{Let's start with a first degree linear model}:
 
 <<>>=
-lin.model <- lm(JT.example1.df$value ~ JT.example1.df$nr)
+lin.model <- lm(signal$y32 ~ signal$t)
 summary(lin.model)
-JT.example1.df$lin.mod <- lin.model$fitted.values
+signal$lin.mod.y32 <- lin.model$fitted.values
 @
 
 <<label=JTlinmod,fig=TRUE,include=FALSE, echo=FALSE>>=
-ggplot(data=JT.example1.df) + 
-  geom_point(aes(x=date, y=value), size=3, color="red") +
-  geom_linerange(aes(x=date, ymin=0,ymax=value),linetype=3, size=1) +
-  geom_line(aes(x=date, y=lin.mod), color="blue") +
-  scale_y_continuous(breaks=seq(0,10,1)) +
-  labs(title="Trend by linear model") +
+ggplot(data=signal) + 
+  geom_point(aes(x=t, y=y32), size=1, color="red") +
+  geom_linerange(aes(x=t, ymin=0,ymax=y32),linetype=3, size=0.5) +
+  geom_line(aes(x=t, y=lin.mod.y32), color="blue") +
+  scale_y_continuous(breaks=seq(-5,15,1)) +
+  labs(title="Trend of y32 by linear model") +
   JT.theme
 @
 
-\begin{marginfigure}[-7cm]
+\begin{marginfigure}[0cm]
 \includegraphics[width=1\textwidth]{TS-JTlinmod}
 \label{fig:JTlinmod}
 \setfloatalignment{b}
 \end{marginfigure}
 
-The nice thing about using this model is that we get a formula for the trend. 
+The nice thing about using this model is that we get a formula for the trend. However: from the summary of this model we learn that the $R^{2}$-value (\Sexpr{round(summary(lin.model)$r.squared,4)}) is not high. This linear model does not approximate the data very well.
+
+\newthought{A polynomial model}
+We don't know the degree of the polynomial that will be the best fit. Making this degree too hight risks getting an overfit. Let's start with a third degree polynomial:
+<<>>=
+poly3.model <- lm(signal$y32 ~ signal$t + I(signal$t^2) + I(signal$t^3))
+summary(poly3.model)
+signal$poly3.mod.y32 <- poly3.model$fitted.values
+@
+
+<<label=JTpoly3mod,fig=TRUE,include=FALSE, echo=FALSE>>=
+ggplot(data=signal) + 
+  geom_point(aes(x=t, y=y32), size=1, color="red") +
+  geom_linerange(aes(x=t, ymin=0,ymax=y32),linetype=3, size=0.5) +
+  geom_line(aes(x=t, y=poly3.mod.y32), color="blue") +
+  scale_y_continuous(breaks=seq(-5,15,1)) +
+  labs(title="Trend of y32 by polynomial model") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-JTpoly3mod}
+\label{fig:JTpoly3mod}
+\setfloatalignment{b}
+\end{marginfigure}
+
+Much better: the $R^{2}$-value (\Sexpr{round(summary(poly3.model)$r.squared,4)}) is high. All coefficients have low p-values. We have to treat these with caution. We could try polynomials of lower (2) and higher (4) degree and see the evolution of the adjusted $R^{2}$-value.
+
+<<echo=FALSE>>=
+poly2.model <- lm(signal$y32 ~ signal$t + I(signal$t^2))
+poly4.model <- lm(signal$y32 ~ signal$t + I(signal$t^2) + I(signal$t^3) + I(signal$t^4))
+@
+
+<<>>=
+AdjRsq <- data.frame(degree=c(2:4),
+                     AdjustedRsquared=c(round(summary(poly2.model)$adj.r.squared,4),
+                                        round(summary(poly3.model)$adj.r.squared,4),
+                                        round(summary(poly4.model)$adj.r.squared,4)))
+AdjRsq
+@
+
+The third-degree polynomial seems to avoid overfitting.
 
 \newpage
 \subsection{Trend as a series of numbers}
