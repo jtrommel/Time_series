@@ -646,7 +646,6 @@ The third-degree polynomial seems to avoid overfitting.
 
 \newthought{Caution!} The polynomial seems to be a good fit to the data, but it is probably very dangerous to work with this polynomial \emph{outside} the interval in which it is defined. Extrapolating a polynomial, which we would do if we used the polynomial for forecasting, can lead to big errors.
 
-\newpage
 \subsection{Trend as a series of numbers}
 
 \newthought{\textsf{R} has a number of inbuilt functions} to find a trend. Best known are the \texttt{loess}- and \texttt{lowess}-functions. \sidenote[][-1cm]{There is an excellent YouTube video on the inner workings of the \texttt{loess}- and \texttt{lowess}-function: \url{https://www.youtube.com/watch?v=85XU1T9DIps}}
@@ -695,7 +694,11 @@ ggplot(data=signal) +
 \setfloatalignment{b}
 \end{marginfigure}
 
+\newpage
+
 \section{Finding periodicity}
+
+\subsection{Using the Discrete Fourier Transform}
 
 \newthought{At the moment} we have found the Level and the Trend, the latter in two ways. We can now find the periodicity using the Discrete Fourier Transform on the signal minus Level and Trend. 
 
@@ -738,6 +741,43 @@ grid.arrange(p1,p2,ncol=2)
 \setfloatalignment{b}
 \end{marginfigure}
 
-Finding the periodicity based on a polynomial function for the trend gives the best results.
+The FFT based on the Trend found with \texttt{loess} (and there is a hint of it in the FFT based on the polynomial Trend) has a new frequency peak at 0.01Hz. This corresponds with a period T=100 which is the whole of the signal.
+
+\subsection{Finding the periodic signal when we know the frequency}
+
+\newthought{Suppose that we know the frequency} of the periodic signal. Then there is an method to find the \emph{form} of this periodic signal. There is however a condition: the signal should be \emph{stationary}. This means that the variation of the periodic part does not change with time. An alternative formulation is: the amplitudes and phase angles of the different components of the Discrete Fourier Transform should remain the same in time. In the ideal case, without noise, the signal without Level and Trend should therefore be the same for every period.  If we plot the signal (without Level and Trend) for every period not sequentially but one on top of the other we should see only one signal. In reality this will not be the case because of the noise and because no signal absolutely conforms to the \emph{stationarity} condition.
+
+When we do this with the y32LTpoly and y32LTloess for the frequency of 0.1 Hz (period=10) we get the following plots:
+
+<<echo=FALSE>>=
+signal %>% select(t,y32LTpoly) -> period.form
+period.form$period.nr <- rep(c(1:10) , each = 10)
+period.form$period.nr <- as.factor(period.form$period.nr)
+period.form$time <- rep(c(1:10) , 10)
+p1 <- ggplot(data=period.form) + 
+  geom_line(aes(x=time, y=y32LTpoly, color=period.form$period.nr)) +
+  labs(title="Periodic signal for \ndifferent periods (poly)") +
+  JT.theme
+signal %>% select(t,y32LTloess) -> period.form
+period.form$period.nr <- rep(c(1:10) , each = 10)
+period.form$period.nr <- as.factor(period.form$period.nr)
+period.form$time <- rep(c(1:10) , 10)
+p2 <- ggplot(data=period.form) + 
+  geom_line(aes(x=time, y=y32LTloess, color=period.form$period.nr)) +
+  labs(title="Periodic signal for \ndifferent periods (loess)") +
+  JT.theme
+@
+
+<<label=JTperiodcompare,fig=TRUE,include=FALSE, echo=FALSE>>=
+grid.arrange(p1,p2,nrow=2)
+@
+
+\begin{marginfigure}[-7cm]
+\includegraphics[width=1\textwidth]{TS-JTperiodcompare}
+\caption{}
+\label{fig:JTperiodcompare}
+\setfloatalignment{b}
+\end{marginfigure}
+
 
 \end{document}
