@@ -702,82 +702,188 @@ ggplot(data=signal) +
 
 \newthought{At the moment} we have found the Level and the Trend, the latter in two ways. We can now find the periodicity using the Discrete Fourier Transform on the signal minus Level and Trend. 
 
-<<echo=FALSE>>=
+<<label=y32LTpoly ,fig=TRUE,include=FALSE, echo=FALSE>>=
 signal %>% select(t,y32LTpoly) -> signal.test
 period.info <- JTR.FFT(signal.test)
 freqspec <- period.info$freqspec
-p1 <- ggplot(data=freqspec) + 
+ggplot(data=freqspec) + 
   geom_line(aes(x=freq,y=amp)) +
   labs(title="Frequency spectrum of y32 \n without Level and Trend (poly)") +
   JT.theme
 @
 
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-y32LTpoly}
+\caption{}
+\label{fig:y32LTpoly}
+\setfloatalignment{b}
+\end{marginfigure}
+
 <<>>=
 period.info$resultaat
 @
 
-<<echo=FALSE>>=
+<<label=y32LTloess ,fig=TRUE,include=FALSE, echo=FALSE>>=
 signal %>% select(t,y32LTloess) -> signal.test
 period.info <- JTR.FFT(signal.test)
 freqspec <- period.info$freqspec
-p2 <- ggplot(data=freqspec) + 
+ggplot(data=freqspec) + 
   geom_line(aes(x=freq,y=amp)) +
   labs(title="Frequency spectrum of y32 \n without Level and Trend (loess)") +
   JT.theme
 @
 
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-y32LTloess}
+\caption{}
+\label{fig:y32LTloess}
+\setfloatalignment{b}
+\end{marginfigure}
+
 <<>>=
 period.info$resultaat
 @
-
-<<label=JTcompare,fig=TRUE,include=FALSE, echo=FALSE>>=
-grid.arrange(p1,p2,ncol=2)
-@
-
-\begin{marginfigure}[-2cm]
-\includegraphics[width=1\textwidth]{TS-JTcompare}
-\caption{}
-\label{fig:JTcompare}
-\setfloatalignment{b}
-\end{marginfigure}
-
-The FFT based on the Trend found with \texttt{loess} (and there is a hint of it in the FFT based on the polynomial Trend) has a new frequency peak at 0.01Hz. This corresponds with a period T=100 which is the whole of the signal.
+\medskip
+The DFT based on the Trend found with \texttt{loess} finds a new frequency peak at 0.01Hz (Figure~\ref{fig:y32LTloess}). This corresponds with a period T=100 which is the whole of the signal. There is a hint of the same in Figure~\ref{fig:y32LTpoly}.
 
 \subsection{Finding the periodic signal when we know the frequency}
 
-\newthought{Suppose that we know the frequency} of the periodic signal. Then there is an method to find the \emph{form} of this periodic signal. There is however a condition: the signal should be \emph{stationary}. This means that the variation of the periodic part does not change with time. An alternative formulation is: the amplitudes and phase angles of the different components of the Discrete Fourier Transform should remain the same in time. In the ideal case, without noise, the signal without Level and Trend should therefore be the same for every period.  If we plot the signal (without Level and Trend) for every period not sequentially but one on top of the other we should see only one signal. In reality this will not be the case because of the noise and because no signal absolutely conforms to the \emph{stationarity} condition.
+\newthought{Suppose that we know the frequency} of the periodic signal. Then there is an method to find the \emph{form} of this periodic signal. There is however a condition: the signal should be \emph{stationary}. This means that the variation of the periodic part does not change with time. An alternative formulation is: the amplitudes and phase angles of the different components of the Discrete Fourier Transform should remain the same in time. In the ideal case, without noise, the signal without Level and Trend should therefore be the same for every period.  If we plot the signal (without Level and Trend) for every period not sequentially but one on top of the other we should see only one signal. In reality this will not be the case because of the noise and because no signal absolutely conforms to the \emph{stationarity} condition. But here we have found two frequencies: 0.1Hz (period=10) and 0.04Hz (period=25). The period of the combined signal is equal to \emph{the smallest common multiple} period=50, because this is the smalles period with integer multiples of both periods.
 
-When we do this with the y32LTpoly and y32LTloess for the frequency of 0.1 Hz (period=10) we get the following plots:
-
-<<echo=FALSE>>=
+<<label=periodpoly,fig=TRUE,include=FALSE, echo=FALSE>>=
 signal %>% select(t,y32LTpoly) -> period.form
-period.form$period.nr <- rep(c(1:10) , each = 10)
+T.sig <- 50
+period.form$period.nr <- rep(c(1:2) , each = T.sig)
 period.form$period.nr <- as.factor(period.form$period.nr)
-period.form$time <- rep(c(1:10) , 10)
-p1 <- ggplot(data=period.form) + 
+period.form$time <- rep(c(1:T.sig) , 2)
+period.form %>% select(time, y32LTpoly) %>% group_by(time) %>% summarize(mean(y32LTpoly)) -> period.gem.poly
+names(period.gem.poly) <- c("time","gem")
+period.gem.poly$original <- 2*sin(2*pi*period.gem.poly$time/10) + sin(2*pi*period.gem.poly$time/25 + pi/6)
+rms.error.poly <- sqrt(sum((period.gem.poly$original - period.gem.poly$gem)^2))
+ggplot(data=period.form) + 
   geom_line(aes(x=time, y=y32LTpoly, color=period.form$period.nr)) +
-  labs(title="Periodic signal for \ndifferent periods (poly)") +
-  JT.theme
-signal %>% select(t,y32LTloess) -> period.form
-period.form$period.nr <- rep(c(1:10) , each = 10)
-period.form$period.nr <- as.factor(period.form$period.nr)
-period.form$time <- rep(c(1:10) , 10)
-p2 <- ggplot(data=period.form) + 
-  geom_line(aes(x=time, y=y32LTloess, color=period.form$period.nr)) +
-  labs(title="Periodic signal for \ndifferent periods (loess)") +
+  labs(title="Periodic signal for different periods (poly) \nand the average") +
+  scale_colour_discrete(name = "period.nr") +
+  geom_line(data=period.gem.poly, aes(x=time, y=gem), size=1.5, color="black") +
+  geom_line(data=period.gem.poly, aes(x=time, y=original), linetype=1, size=1, color="green") +
+  scale_y_continuous(breaks=seq(-5,5,1)) +
   JT.theme
 @
 
-<<label=JTperiodcompare,fig=TRUE,include=FALSE, echo=FALSE>>=
-grid.arrange(p1,p2,nrow=2)
-@
-
-\begin{marginfigure}[-7cm]
-\includegraphics[width=1\textwidth]{TS-JTperiodcompare}
+\begin{marginfigure}[-9.5cm]
+\includegraphics[width=1\textwidth]{TS-periodpoly}
 \caption{}
-\label{fig:JTperiodcompare}
+\label{fig:periodpoly}
 \setfloatalignment{b}
 \end{marginfigure}
 
+<<label=periodloess,fig=TRUE,include=FALSE, echo=FALSE>>=
+signal %>% select(t,y32LTloess) -> period.form
+period.form$period.nr <- rep(c(1:2) , each = T.sig)
+period.form$period.nr <- as.factor(period.form$period.nr)
+period.form$time <- rep(c(1:T.sig) , 2)
+period.form %>% select(time, y32LTloess) %>% group_by(time) %>% summarize(mean(y32LTloess)) -> period.gem.loess
+names(period.gem.loess) <- c("time","gem")
+period.gem.loess$original <- 2*sin(2*pi*period.gem.loess$time/10) + sin(2*pi*period.gem.loess$time/25 + pi/6)
+rms.error.loess <- sqrt(sum((period.gem.loess$original - period.gem.loess$gem)^2))
+ggplot(data=period.form) + 
+  geom_line(aes(x=time, y=y32LTloess, color=period.form$period.nr)) +
+  labs(title="Periodic signal for different periods (loess) \nand average and original signal") +
+  scale_colour_discrete(name = "period.nr") +
+  geom_line(data=period.gem.loess, aes(x=time, y=gem), size=1.5, color="black") +
+  geom_line(data=period.gem.loess, aes(x=time, y=original), linetype=1, size=1, color="green") +
+  scale_y_continuous(breaks=seq(-5,5,1)) +
+  JT.theme
+@
+
+\begin{marginfigure}[-2.5cm]
+\includegraphics[width=1\textwidth]{TS-periodloess}
+\caption{}
+\label{fig:periodloess}
+\setfloatalignment{b}
+\end{marginfigure}
+
+When we do this with the y32LTpoly and y32LTloess for the frequency of 0.02Hz (period=50) we get the plot in Figure~\ref{fig:periodpoly} and Figure~\ref{fig:periodloess}. Out of all the clutter we get a very reasonable approximation (black dots) of the original combination of two sine functions (green) with resp. period 10 and period 25! When we look at the RMS-value of the error (=difference between the calculated mean and the actual value of the periodic component without noise), then there is not much difference between the calculation based on the polynominal Trend or the one based on the \texttt{loess}-Trend.
+
+<<>>=
+rms.error.poly
+rms.error.loess
+@
+
+\section{The deconstructed signal}
+\newthought{We now have three components} of the signal y32: Level, Trend and Periodicity. The rest is Noise. A visualisation of this is given in Figure~\ref{fig:deconpoly} for the polynomial Trend and in Figure~\ref{fig:deconloess} for the \texttt{loess}-Trend.
+
+<<label=deconpoly,fig=TRUE,include=FALSE, echo=FALSE>>=
+signal %>% select(t, y32, poly3.mod.y32) -> decon.poly
+decon.poly$LevelplusTrend <- mean(decon.poly$y32) + decon.poly$poly3.mod.y32
+decon.poly$Periodic <- rep(period.gem.poly$gem[1:50],2)
+decon.poly$Noise <- decon.poly$y32 - decon.poly$LevelplusTrend - decon.poly$Periodic
+rms.noise.poly <- sqrt(sum(decon.poly$Noise^2))
+decon.P <- data.frame(t = rep(decon.poly$t, 4) ,
+                      value = c(decon.poly$y32, 
+                                decon.poly$LevelplusTrend, 
+                                decon.poly$Periodic, decon.poly$Noise),
+                      type = factor(rep(c("original",
+                                        "LevelplusTrend", 
+                                        "Periodic",
+                                        "Noise"), each=nrow(decon.poly)), 
+                                  levels=c("original","LevelplusTrend", "Periodic","Noise")))
+ggplot(data=decon.P, aes(x=t, y=value)) +
+  geom_line() +
+  facet_grid(type ~ ., scales = "free_y", switch = "y") +
+  labs(title="Deconstructed y32 with polynomial Trend") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-deconpoly}
+\caption{}
+\label{fig:deconpoly}
+\setfloatalignment{b}
+\end{marginfigure}
+
+<<label=deconloess,fig=TRUE,include=FALSE, echo=FALSE>>=
+signal %>% select(t, y32, loess.y32L) -> decon.loess
+decon.loess$LevelplusTrend <- mean(decon.loess$y32) + decon.loess$loess.y32L
+decon.loess$Periodic <- rep(period.gem.loess$gem[1:50],2)
+decon.loess$Noise <- decon.loess$y32 - decon.loess$LevelplusTrend - decon.loess$Periodic
+rms.noise.loess <- sqrt(sum(decon.loess$Noise^2))
+decon.L <- data.frame(t = rep(decon.loess$t, 4) ,
+                      value = c(decon.loess$y32, 
+                                decon.loess$LevelplusTrend, 
+                                decon.loess$Periodic, decon.poly$Noise),
+                      type = factor(rep(c("original",
+                                        "LevelplusTrend", 
+                                        "Periodic",
+                                        "Noise"), each=nrow(decon.poly)), 
+                                  levels=c("original","LevelplusTrend", "Periodic","Noise")))
+ggplot(data=decon.L, aes(x=t, y=value)) +
+  geom_line() +
+  facet_grid(type ~ ., scales = "free_y", switch = "y") +
+  labs(title="Deconstructed y32 with loess Trend") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-deconloess}
+\caption{}
+\label{fig:deconloess}
+\setfloatalignment{b}
+\end{marginfigure}
+
+We can compare the quantity of Noise for both models. The noise in the signal was generated as a random draw from a normal distribution with $\mu=0$ and $\sigma=0.5$. Its RMS-value is:
+
+<<echo=FALSE>>=
+rms.noise <- sqrt(sum(noise^2))
+@
+<<>>=
+rms.noise
+@
+
+The RMS-values of the Noise in the deconstructed signal are:
+<<>>=
+rms.noise.poly
+rms.noise.loess
+@
 
 \end{document}
