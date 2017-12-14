@@ -909,45 +909,19 @@ rms.noise.loess
   \item We calculate the Level
   \item Substracting the Level from y32 we obtain y32L. 
   \item We substract from y32L the Periodic component we found in the first run. This gives us y32LP
-  \item We make a second estimate of the Trend using a polynomial regression or by applying a \texttt{loess}-function on y32LP. 
-  \item We eliminate the new Trend based y32LT=y32L - Trend
-  \item We find the second approcimation of the Periodic component using DFT or by calculating the mean of the different periods. Important: the \emph{period} we use is the Least Common Multiple of the periods we find with the Discrete Fourier Transform
+  \item We make a new estimate of the Trend using a polynomial regression or by applying a \texttt{loess}-function on y32LP. Let's call this one TrendNew
   \item The remainder is Noise
-  \item The original signal can be deconstructed into Level+Trend, Periodic and Noise.
+  \item The original signal can be deconstructed into Level+TrendNew, Periodic and Noise.
 \end{enumerate}
 
-<<echo=FALSE>>=
-signal$Periodic1 <- rep(period.gem.loess$gem[1:50],2)
-signal$y32LP <- signal$y32L - signal$Periodic1
+<<label=deconloessBIS,fig=TRUE,include=FALSE, echo=FALSE>>=
+signal$Periodic <- rep(period.gem.loess$gem[1:50],2)
+signal$y32LP <- signal$y32L - signal$Periodic
 loess.model <- loess(signal$y32LP ~ signal$t, span=0.9, degree=1)
 signal$loess.y32LP <- predict(loess.model)
-signal$y32LTbis <- signal$y32L - signal$loess.y32LP
-signal %>% select(t,y32LTbis) -> signal.test
-period.info <- JTR.FFT(signal.test)
-freqspec <- period.info$freqspec
-p1 <- ggplot(data=freqspec) + 
-  geom_line(aes(x=freq,y=amp)) +
-  labs(title="Frequency spectrum of y32 \n without Level and Trend (loess) BIS") +
-  JT.theme
-signal %>% select(t,y32LTbis) -> period.form
-period.form$period.nr <- rep(c(1:2) , each = T.sig)
-period.form$period.nr <- as.factor(period.form$period.nr)
-period.form$time <- rep(c(1:T.sig) , 2)
-period.form %>% select(time, y32LTbis) %>% group_by(time) %>% summarize(mean(y32LTbis)) -> period.gem.loess
-names(period.gem.loess) <- c("time","gem")
-period.gem.loess$original <- 2*sin(2*pi*period.gem.loess$time/10) + sin(2*pi*period.gem.loess$time/25 + pi/6)
-rms.error.loess <- sqrt(sum((period.gem.loess$original - period.gem.loess$gem)^2))
-p2 <- ggplot(data=period.form) + 
-  geom_line(aes(x=time, y=y32LTbis, color=period.form$period.nr)) +
-  labs(title="Periodic signal for different periods (loess) \nand average and original signal BIS") +
-  scale_colour_discrete(name = "period.nr") +
-  geom_line(data=period.gem.loess, aes(x=time, y=gem), size=1.5, color="black") +
-  geom_line(data=period.gem.loess, aes(x=time, y=original), linetype=1, size=1, color="green") +
-  scale_y_continuous(breaks=seq(-5,5,1)) +
-  JT.theme
 signal %>% select(t, y32, loess.y32LP) -> decon.loess
 decon.loess$LevelplusTrend <- mean(decon.loess$y32) + decon.loess$loess.y32LP
-decon.loess$Periodic <- rep(period.gem.loess$gem[1:50],2)
+decon.loess$Periodic <- signal$Periodic
 decon.loess$Noise <- decon.loess$y32 - decon.loess$LevelplusTrend - decon.loess$Periodic
 rms.noise.loess <- sqrt(sum(decon.loess$Noise^2))
 decon.L <- data.frame(t = rep(decon.loess$t, 4) ,
@@ -959,27 +933,37 @@ decon.L <- data.frame(t = rep(decon.loess$t, 4) ,
                                         "Periodic",
                                         "Noise"), each=nrow(decon.poly)), 
                                   levels=c("original","LevelplusTrend", "Periodic","Noise")))
-p3 <- ggplot(data=decon.L, aes(x=t, y=value)) +
+ggplot(data=decon.L, aes(x=t, y=value)) +
   geom_line() +
   facet_grid(type ~ ., scales = "free_y", switch = "y") +
   labs(title="Deconstructed y32 with loess Trend") +
   JT.theme
 @
 
-<<label=deconloessBIS,fig=TRUE,include=FALSE, echo=FALSE>>=
-grid.arrange(p1,p2,p3,nrow=3)
-@
-
-\begin{figure}
+\begin{marginfigure}[-5cm]
 \includegraphics[width=1\textwidth]{TS-deconloessBIS}
 \caption{}
 \label{fig:deconloessBIS}
 \setfloatalignment{b}
-\end{figure}
+\end{marginfigure}
 
+Figure~\ref{fig:deconloessBIS} gives the result. From the calculation of the RMS value of the error we see that a second run does not lead to an improvement!
 <<>>=
 rms.error.loess
 rms.noise.loess
+@
+
+
+\section{Using the deconstruction method on a real time series}
+
+\newthought{In her book} ''Practival Time Series Forecasting with R", Galit Shmueli works with a time series called ''Amtrak data". These include the monthly ridership on Amtrak trains (in thousands) for Jan-1991 to March-2004.
+
+<<>>=
+Amtrak.data <- read.csv("Data/Amtrak data.csv", sep=";")
+Amtrak.data$nr <- c(1:nrow(Amtrak.data))
+ggplot(data=Amtrak.data) +
+  geom_line(aes(x=nr, y=Ridership)) +
+  JT.theme
 @
 
 \end{document}
