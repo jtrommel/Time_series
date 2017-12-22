@@ -927,11 +927,12 @@ rms.noise.loess <- sqrt(sum(decon.loess$Noise^2))
 decon.L <- data.frame(t = rep(decon.loess$t, 4) ,
                       value = c(decon.loess$y32, 
                                 decon.loess$LevelplusTrend, 
-                                decon.loess$Periodic, decon.poly$Noise),
+                                decon.loess$Periodic, 
+                                decon.loess$Noise),
                       type = factor(rep(c("original",
                                         "LevelplusTrend", 
                                         "Periodic",
-                                        "Noise"), each=nrow(decon.poly)), 
+                                        "Noise"), each=nrow(decon.loess)), 
                                   levels=c("original","LevelplusTrend", "Periodic","Noise")))
 ggplot(data=decon.L, aes(x=t, y=value)) +
   geom_line() +
@@ -958,12 +959,135 @@ rms.noise.loess
 
 \newthought{In her book} ''Practival Time Series Forecasting with R", Galit Shmueli works with a time series called ''Amtrak data". These include the monthly ridership on Amtrak trains (in thousands) for Jan-1991 to March-2004.
 
-<<>>=
+\subsection{The data}
+
+<<label=Amdata,fig=TRUE,include=FALSE, echo=FALSE>>=
 Amtrak.data <- read.csv("Data/Amtrak data.csv", sep=";")
 Amtrak.data$nr <- c(1:nrow(Amtrak.data))
 ggplot(data=Amtrak.data) +
-  geom_line(aes(x=nr, y=Ridership)) +
+  geom_line(aes(x=nr, y=Ridership), size=1, color="red") +
+  labs(title="Amtrak Ridership data") +
   JT.theme
 @
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{TS-Amdata}
+\caption{}
+\label{fig:Amdata}
+\setfloatalignment{b}
+\end{figure}
+
+In Figure~\ref{fig:Amdata} we can see that a first degree linear trend is probably not the right thing to use. We could go for a polynomial trend, but the use of the \texttt{loess}-function of degree 2 seems more appropriate.
+
+\subsection{Level and Trend}
+
+<<label=AmLandT,fig=TRUE,include=FALSE, echo=FALSE>>=
+Level <- mean(Amtrak.data$Ridership)
+Amtrak.data$RidershipL <- Amtrak.data$Ridership - Level
+loess.model <- loess(Amtrak.data$RidershipL ~ Amtrak.data$nr, span=0.9, degree=2)
+Amtrak.data$Trend <- predict(loess.model)
+Amtrak.data$LevelandTrend <- Amtrak.data$Trend + Level
+ ggplot(data=Amtrak.data) + 
+  geom_point(aes(x=nr, y=Ridership), size=1, color="red") +
+  geom_line(aes(x=nr, y=LevelandTrend), color="blue") +
+  labs(title="Level and Trend of Ridership using a linear model") +
+  JT.theme
+@
+
+\begin{marginfigure}[-8cm]
+\includegraphics[width=1\textwidth]{TS-AmLandT}
+\caption{}
+\label{fig:AmLandT}
+\setfloatalignment{b}
+\end{marginfigure}
+
+\subsection{Periodicity}
+
+First we use the Discrete Fourier Transform to get an idea of the periodicity (Figure~\ref{fig:AmFFT}).
+
+<<label=AmFFT,fig=TRUE,include=FALSE, echo=FALSE>>=
+Amtrak.data$RidershipLT <- Amtrak.data$Ridership - Amtrak.data$LevelandTrend 
+Amtrak.data %>% select(nr, RidershipLT) -> signal.test
+period.info <- JTR.FFT(signal.test)
+freqspec <- period.info$freqspec
+ggplot(data=freqspec) + 
+  geom_line(aes(x=freq,y=amp)) +
+  labs(title="Frequency spectrum of Ridership \n without Level and Trend (loess)") +
+  JT.theme
+@
+
+\begin{marginfigure}[-2cm]
+\includegraphics[width=1\textwidth]{TS-AmFFT}
+\caption{}
+\label{fig:AmFFT}
+\setfloatalignment{b}
+\end{marginfigure}
+
+Three clear peaks at 0.082, 0.252. The corresponding periods are:
+
+<<>>=
+period.info$resultaat$period <- 1/period.info$resultaat$freq
+period.info$resultaat$period
+@
+
+These periods are equal to 1 year and 1 quarter. \emph{the Least Common Multiple} period is the year, or T.sig=12.
+
+<<label=AmPeriodic,fig=TRUE,include=FALSE, echo=FALSE>>=
+Amtrak.data %>% select(nr,RidershipLT) -> period.form
+T.sig <- 12
+# Select an integer multiple of T.sig
+Int.mult <- floor(nrow(Amtrak.data)/T.sig)
+N <- T.sig*Int.mult
+period.form <- period.form[1:N,]
+period.form$period.nr <- rep(c(1:Int.mult) , each = T.sig)
+period.form$period.nr <- as.factor(period.form$period.nr)
+period.form$time <- rep(c(1:T.sig) , 13)
+period.form %>% select(time, RidershipLT) %>% group_by(time) %>% summarize(mean(RidershipLT)) -> period.gem.loess
+names(period.gem.loess) <- c("time","gem")
+ggplot(data=period.form) +
+  geom_line(aes(x=time, y=RidershipLT, color=period.form$period.nr)) +
+  labs(title="Periodic signal for different periods") +
+  scale_colour_discrete(name = "period.nr") +
+  geom_line(data=period.gem.loess, aes(x=time, y=gem), size=1.5, color="black") +
+  JT.theme
+@
+
+\begin{marginfigure}[0cm]
+\includegraphics[width=1\textwidth]{TS-AmPeriodic}
+\caption{}
+\label{fig:AmPeriodic}
+\setfloatalignment{b}
+\end{marginfigure}
+
+Deconstructing the Amtrak data:
+
+<<label=deconAmtrak,fig=TRUE,include=FALSE, echo=FALSE>>=
+Amtrak.data$Periodic <- c(rep(period.gem.loess$gem, Int.mult), period.gem.loess$gem[1:(nrow(Amtrak.data)-N)])
+Amtrak.data %>% select(nr, Ridership, LevelandTrend, Periodic) -> decon.Amtrak
+decon.Amtrak$Noise <- decon.Amtrak$Ridership - decon.Amtrak$LevelandTrend - decon.Amtrak$Periodic
+rms.noise.Amtrak <- sqrt(sum(decon.Amtrak$Noise^2))
+decon.L <- data.frame(t = rep(decon.Amtrak$nr, 4) ,
+                      value = c(decon.Amtrak$Ridership, 
+                                decon.Amtrak$LevelandTrend, 
+                                decon.Amtrak$Periodic, 
+                                decon.Amtrak$Noise),
+                      type = factor(rep(c("original",
+                                        "LevelandTrend", 
+                                        "Periodic",
+                                        "Noise"), each=nrow(decon.Amtrak)), 
+                                  levels=c("original","LevelandTrend", "Periodic","Noise")))
+ggplot(data=decon.L, aes(x=t, y=value)) +
+  geom_line() +
+  facet_grid(type ~ ., scales = "free_y", switch = "y") +
+  labs(title="Deconstructed Amtrak with loess Trend") +
+  JT.theme
+@
+
+\begin{figure}
+\includegraphics[width=1\textwidth]{TS-deconAmtrak}
+\caption{}
+\label{fig:deconAmtrak}
+\setfloatalignment{b}
+\end{figure}
 
 \end{document}
